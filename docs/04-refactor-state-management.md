@@ -1,18 +1,18 @@
-# Refactor state management
+# ステート管理のリファクタリング
 
-In this section we'll revisit some of the code we've already written and try to make it nicer. We'll also talk more about eventing and how events cause the UI to update.
+このセッションでは、既に実装したコードを振り返り、リファクタリングしていきます。
 
-## A problem
+## 現在の問題
 
-You might have noticed this already, but our application has a bug! Since we're storing the list of pizzas in the current order on the Index component, the user's state can be lost if the user leaves the Index page. To see this in action, add a pizza to the current order (don't place the order yet) - then navigate to the MyOrders page and back to Index. When you get back, you'll notice the order is empty!
+既に気づいているかもしれませんが、このアプリには不具合があります。注文の情報を `index` コンポーネントで保持しているため、ユーザーが画面遷移をすると、注文データが失われます。事象を確認するために、ピザを選択して注文カゴにいれた状態で、`My Orders` ページへ遷移して戻ってみてください。カゴに入れたデータが消失していることが分かります。
 
-## A solution
+## 解決策
 
-We're going to fix this bug by introducing something we've dubbed the *AppState pattern*. The basics are that you want to add an object to the DI container that you will use to coordinate state between related components. Because the *AppState* object is managed by the DI container, it can outlive the components and hold on to state even when the UI is changing a lot. Another benefit of the *AppState pattern* is that it leads to greater separation between presentation (components) and business logic. 
+この問題は *アプリケーションステート パターン* と呼ばれる手法で解決できます。アプリケーションステートを保持するオブジェクトを別に用意して、DI 経由で利用することで、コンポーネントからステート管理を切り離せます。これにより複数コンポーネントを跨いだアプリケーションステート管理を可能にします。さらにこのパターンを使うことで、UI レイヤーとアプリケーションステートに関わるビジネスロジックを分割できます。
 
-## Getting started
+## ステート管理の実装
 
-Create a new class called `OrderState` in the Client Project root directory - and register it as a scoped service in the DI container. In Blazor WebAssembly applications, services are registered in the `Program` class via the `Main` method. Add the service just before the call to `await builder.Build().RunAsync();`.
+クライアントプロジェクトのルートに `OrderState` クラスを追加して、スコープサービスとして DI に登録します。Blazor WebAssembly アプリケーションでは、`Program` クラスの `Main` メソッドで IoC を構成します:
 
 ```csharp
 public static async Task Main(string[] args)
@@ -27,11 +27,11 @@ public static async Task Main(string[] args)
 }
 ```
 
-> Note: the reason why we choose scoped over singleton is for symmetry with a server-side-components application. Singleton usually means *for all users*, where as scoped means *for the current unit-of-work*.
+> メモ: 今回 *Singleton* ではなく *Scoped* でサービスを登録した理由は、サーバーサイドのコンポーネントと合わせるためです。シングルトンは *全ユーザー向け* の場合に利用し、スコープは *現在の作業* 単位となります。ただし、現時点で WebAssembly の *Scoped* は *Singleton* と同じ振る舞いをします。Blazor サーバーアプリの場合は *Scoped* は接続単位で動作します。詳細は [サービスの有効期間](https://docs.microsoft.com/ja-jp/aspnet/core/blazor/dependency-injection?view=aspnetcore-3.1#service-lifetime)を参照してください。
 
-## Updating Index
+## Index の更新
 
-Now that this type is registered in DI, we can `@inject` it into the `Index` page.
+DI への登録が完了したので、`@inject` を使って `Index` ページでステートオブジェクトを利用します。
 
 ```razor
 @page "/"
@@ -40,13 +40,13 @@ Now that this type is registered in DI, we can `@inject` it into the `Index` pag
 @inject NavigationManager NavigationManager
 ```
 
-Recall that `@inject` is a convenient shorthand to both retrieve something from DI by type, and define a property of that type.
+以前にも紹介しましたが、 `@inject` ディレクティブでは型とプロパティ名を指定できます。
 
-You can test this now by running the app again. If you try to inject something that isn't found in the DI container, then it will throw an exception and the `Index` page will fail to come up.
+登録されていない型を挿入しようとすると例外が発生して、アプリケーションの起動に失敗します。
 
-Now, let's add properties and methods to this class that will represent and manipulate the state of an `Order` and a `Pizza`.
+次に `OrderState` に注文のステータスや追加されたピザを管理するプロパティとメソッドを追加します。
 
-Move the `configuringPizza`, `showingConfigureDialog` and `order` fields to be properties on the `OrderState` class. Make them `private set` so they can only be manipulated via methods on `OrderState`.
+`configuringPizza`、`showingConfigureDialog` および `order` フィールドを `OrderState` のクラスプロパティとして移動します。`private set` を指定して、内部メソッドからのみ値を操作できるようにしています:
 
 ```csharp
 public class OrderState
@@ -59,7 +59,7 @@ public class OrderState
 }
 ```
 
-Now let's move some of the methods from the `Index` to `OrderState`. We won't move `PlaceOrder` into `OrderState` because that triggers a navigation, so instead we'll just add a `ResetOrder` method.
+次に `Index` から `OrderState` にメソッドを移動します。`PlaceOrder` メソッドは画面遷移の機能があるため残しますが、代わりに`ResetOrder` メソッドを追加しました:
 
 ```csharp
 public void ShowConfigurePizzaDialog(PizzaSpecial special)
@@ -101,9 +101,9 @@ public void RemoveConfiguredPizza(Pizza pizza)
 }
 ```
 
-Remember to remove the corresponding methods from `Index.razor`. You must also remember to remove the `order`, `configuringPizza`, and `showingConfigureDialog` fields entirely from `Index.razor`, since you'll be getting the state data from the injected `OrderState`.
+`order`、`configuringPizza` および `showingConfigureDialog` をはじめ移動したメソッドも `Index.razor` から消し忘れないように注意してください。これらのプロパティやメソッドは全て `OrderState` のものを利用します。
 
-At this point it should be possible to get the `Index` component compiling again by updating references to refer to various bits attached to `OrderState`. For example, the remaining `PlaceOrder` method in `Index.razor` should look like this:
+`Index` コンポーネントにある古い参照を、`OrderState` のものに差し替えるとコンパイルも通ります。例えば、`Index.razor` に残した `PlaceOrder` メソッドは以下のように変更します:
 
 ```csharp
 async Task PlaceOrder()
@@ -114,27 +114,31 @@ async Task PlaceOrder()
 }
 ```
 
-Feel free to create convenience properties for things like `OrderState.Order` or `OrderState.Order.Pizzas` if it feels better to you that way.
+`OrderState.Order` や `OrderState.Order.Pizza` と書くのが長いと感じる場合は、プロパティを作成することもできます。
 
-Try this out and verify that everything still works. In particular, verify that you've fixed the original bug: you can now add some pizzas, navigate to "My orders", navigate back, and your order has no longer been lost.
+```csharp
+Order Order = OrderState.Order;
+Pizza Pizza = OrderState.Order.Pizza;
+```
 
-## Exploring state changes
+コードを変更した後でアプリケーションを起動して、全て機能するか確認してください。特に既知の不具合が解消されているかは、再現手順を実施して、注文データが失われないか確認してください。
 
-This is a good opportunity to explore how state changes and rendering work in Blazor, and how `EventCallback` solves some common problems. The details of what is happening become more complicated now that `OrderState` is involved.
+## ステート変更
 
-`EventCallback` tells Blazor to dispatch the event notification (and rendering) to the component that defined the event handler. If the event handler is not defined by a component (`OrderState`) then it will substitute the component that *hooked up* the event handler (`Index`).
+この機会に、Blazor でどのようにステートが変わるかと、`EventCallback` が解決する問題を見ていきます。
 
+通常 `EventCallback` は、イベントハンドラーを定義しているコンポーネントに、イベントハンドラーの実行と画面の再描画を行うよう通知をします。今回はイベントハンドラーが Blazor コンポーネントではない `OrderState` に定義されている為、イベントハンドラーとイベントを紐づけしている `index` コンポーネントに通知が行われます。
 
-## Conclusion
+## 結論
 
-So let's sum up what the *AppState pattern* provides:
-- Moves shared state outside of components into `OrderState`
-- Components call methods to trigger a state change
-- `EventCallback` takes care of dispatching change notifications
+*アプリケーションステート パターン* の採用で実施したことをまとめました:
+- アプリケーションで共通のステートを `OrderState` に移動
+- ステートの変更が実行されるメソッドがコンポーネント経由で実行
+- `EventCallback` が適切なコンポーネントに変更通知を実施
 
-We've covered a lot of information as well about rendering and eventing:
-- Components re-render when parameters change or they receive an event
-- Dispatching of events depends on the event handler delegate target
-- Use `EventCallback` to have the most flexible and friendly behavior for dispatching events
+このセッションでは以下のように多くの内容をカバーしました:
+- パラメーターが変わった時やイベントを受け取った際のコンポーネントの再描画処理
+- イベントハンドラーの実行に伴う、イベントのディスパッチの動作
+- `EventCallback` を使う事で、容易にイベントのディスパッチが行えること
 
-Next up - [Checkout without validation](05-checkout-with-validation.md)
+次のセッションは - [チェックアウトとデータ検証](05-checkout-with-validation.md) です。

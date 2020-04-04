@@ -1,58 +1,62 @@
-# Publish and deploy
+# 発行と展開
 
-In this optional session, you'll deploy the pizza store app to Azure App Service.
+このセッションでは、開発した Blazor アプリを Azure App Service に発行して、外部からも使えるようにします。
 
-## Creating an Azure account
+## Azure アカウントの作成
 
-You'll need an Azure account or subscription to complete this session. If you don't have one already, you can [sign up for a free Azure account](https://azure.microsoft.com/Free).
+このセッションでは Azure アカウントが必要となります。お持ちでない場合、[無償利用版](https://azure.microsoft.com/Free) にサインアップしてください。
 
-After you've created your account, make sure to sign in to Visual Studio with this account so that you can access your Azure resources.
+アカウントを取得したら、Visual Studio に同じアカウントでサインインし、Visual Studio 内から Azure にアクセスできるようにします。
 
-## Publishing to a new Azure App Service
+## 新規 Azure App Service に発行
 
-Azure App Service allows you to easily deploy ASP.NET Core web apps to the cloud.
+Azure App Service は ASP.NET Core アプリをクラウドで実行するサービスです。
 
-Right-click on the Server project in the solution and select Publish. The ASP.NET Core Server project references the client Blazor project, so publishing the Server project will include the Blazor parts and their dependencies.
+バックエンドサーバープロジェクトを右クリックして、発行を選択します。このプロジェクトはクライアントプロジェクトをはじめ、必要なプロジェクトの参照を持つため、Blazor と依存関係も合わせて発行されます。
 
 ![Publish from VS](https://user-images.githubusercontent.com/1874516/51885818-2501ac80-2385-11e9-8025-4d1477083a8d.png)
 
-In the "Pick a publish target" dialog:
-- Select "App Service"
-- Select the "Create New" option
-- Select "Create Profile" in the button drop down before clicking it
+"Pick a publish target" ダイアログで以下の操作をします。
+- "App Service" を選択。
+- "Create New" オプションを選択。
+- "Create Profile" を選択してクリック。
 
 ![Pick a publish target](https://user-images.githubusercontent.com/1874516/51885912-7f027200-2385-11e9-8707-0e2f82b543fd.png)
 
-In the "Create App Service" dialog:
-- Make sure that the correct account that you want to use for your new Azure App Service is selected in the account drop down in the upper right
-- Pick a unique name for your app (which becomes part of the app's default URL)
-- Select the Azure subscription you want to use along with the Resource Group and Hosting Plan
-    - Resource groups are a convenient way to group related resources on Azure, so consider creating one specific to the pizza store app. 
-    - For the hosting plan, using a free plan is fine.
+"Create App Service" ダイアログで以下の操作をします。
+- 正しい Azure アカウントが選択されていることを確認。
+- ユニークな名前を指定。この名前は URL の一部となります。
+- 使用する Azure サブスクリプションとリソースグループおよびホスティングプランを選択。
+    - リソースグループは関連するリソースをまとめる便利な機能です。今回のアプリ専用のグループを作ってください。
+    - ホスティングプランは無償のものが利用できます。
 
 ![Create App Service](https://user-images.githubusercontent.com/1874516/51886115-4e6f0800-2386-11e9-9da1-82cc910aad3b.png)
 
-At this point you could also create a production database for your app. Since the app uses SQLite and deploys its own database, creating a database isn't necessary, but for a real app it would be.
+このタイミングで本番用のデータベースも作成できます。このアプリは SQLite を使っているため、別途データベースは必要ありませんが、実際のアプリでは必要となるでしょう。
 
-Click Create to create the App Service. This may take a couple of minutes. Once the App Service is created you should see your publish profile in the Publish page:
+作成をクリックます。この作業は数分かかります。App Service が作成されたら、発行ページでプロファイルが確認できます。
 
 ![Publish profile](https://user-images.githubusercontent.com/1874516/51886256-ee2c9600-2386-11e9-9da7-d80d2500b0ea.png)
 
-Before we publish, we first we need to do some configuration for our app to run. The pizza store app requires a Twitter app consumer key and secret to handle authentication. During development, these values are stored in `appsettings.Development.json`. We need to configure these values in the App Service environment, or the app will fail to run.
+実際に発行する前に、幾つか構成を行う必要があります。このアプリは Twitter 連携を行っているため、別途 Twitter 側でアプリを登録し、ID とシークレットを取得してください。開発中は `appsettings.Development.json` の定義を利用して動作していましたが、こちらは今回のワークショップ用に開発チームが取得したものです。
 
-To register your app service as a Twitter app, you'll need to use the [Twitter Developer Console](https://developer.twitter.com/apps) and signup up for a Twitter developer account. Or you can use dummy values for now, which will break authentication, but at least allow the app to run.
+Twitter にアプリを登録するには、[Twitter 開発者コンソール](https://developer.twitter.com/apps) より開発者アカウントを取得します。
 
-Click on the "Edit App Service Settings" link. Add two settings: `Authentication:Twitter:ConsumerKey`, and `Authentication:Twitter:ConsumerSecret`. Specify the correct values for your Twitter app, or just put in some dummy strings if you don't care about getting  authentication working. Click OK to save the app settings.
+"Edit App Service Settings" リンクをクリックして、2 つの設定を追加します。 
+
+- `Authentication:Twitter:ConsumerKey`
+- `Authentication:Twitter:ConsumerSecret`
+
+それぞれ正しい値を設定してください。
 
 ![Add app settings](https://user-images.githubusercontent.com/1874516/51886491-fc2ee680-2387-11e9-9c16-5f1fc47365fa.png)
 
-You're ready to publish! Click Publish.
+準備が完了したら、発行を実行します。
 
 ![image](https://user-images.githubusercontent.com/1874516/51886932-a52a1100-2389-11e9-8b58-6ea3ae5a4291.png)
 
-
-Publishing the app may take a few minutes. Once the app has finished deploying it should automatically load in the browser.
+初めの発行は数分かかりますが、完了すると画面が表示されます。
 
 ![Published app](https://user-images.githubusercontent.com/1874516/51886593-5a5bc980-2388-11e9-9329-7e015901e45d.png)
 
-Congrats!
+以上でワークショップは全て完了です。お疲れ様でした。

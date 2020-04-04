@@ -1,16 +1,14 @@
-# Authentication
+# 認証
 
-The application is working well. Users can place orders and track their order status. But there's one little problem: currently we don't distinguish between users at all. The "My orders" page lists *all* orders placed by *all* users, and anybody can view the state of anybody else's order. Your customers, and privacy regulations, may have an issue with this.
+アプリケーションは期待した通りに動作しています。ユーザーはピザを選択して注文できますし、その後の追跡もできています。しかし現状複数のユーザーを区別できないという大きな問題があります。"My orders" ページでは *全ての* ユーザーの注文が表示され、誰でも観ることができます。
 
-The solution is *authentication*. We need a way for users to log in, so we know who's who. Then we can implement *authorization*, which is to enforce rules about who's allowed to do what.
+解決策はユーザーログインを使った*認証*を組み込むことです。また*認可*によってログインしたユーザーが何ができるかを制御する必要もあります。
 
-## Enforcement is on the server
+## サーバーサイドでログインを強制
 
-The first and most important principle is that all *real* security rules must be enforced on the backend server. The client (UI) merely shows or hides options as a courtesy to well-behaved users, but a malicious user can always change the behavior of the client-side code.
+最も重要な点は、本当のセキュリティはサーバーサイドで強制することです。クライアントサイドは*行儀の良い*ユーザーは制御できますが、少しでも知識があると挙動を変更することは難しくありません。よってまずはサーバーサイドでの認証と認可を実装していきます。
 
-As such, we're going to start by enforcing some access rules in the backend server, even before the client code knows about them.
-
-Inside the `BlazorPizza.Server` project, you'll find `OrdersController.cs`. This is the controller class that handles incoming HTTP requests for `/orders` and `/orders/{orderId}`. To require that all requests to these endpoints come from authenticated users (i.e., people who have logged in), add the `[Authorize]` attribute to the `OrdersController` class:
+`BlazorPizza.Server` プロジェクトの `OrdersController.cs` を開きます。このクラスで `/orders` と `/orders/{orderId}` エンドポイントの処理を行っています。コントローラーを保護するために、`[Authorize]` 属性を追加します:
 
 ```csharp
 [Route("orders")]
@@ -21,21 +19,21 @@ public class OrdersController : Controller
 }
 ```
 
-The `AuthorizeAttribute` class is located in the `Microsoft.AspNetCore.Authorization` namespace.
+`AuthorizeAttribute` クラスは `Microsoft.AspNetCore.Authorization` 名前空間にあります。
 
-If you try to run your application now, you'll find that you can no longer place orders, nor can you retrieve details of orders already placed. Requests to these endpoints will return HTTP 302 redirects to a login URL that doesn't exist. That's good, because it shows that rules are being enforced on the server!
+この変更だけでアプリからは注文の実行も、既に作成した注文の取得もできなくなります。ブラウザの開発者ツールのネットワークを確認すると、バックエンドより HTTP 302 が返っていて、ログイン URL にリダイレクトされていますが、まだログインページがないためそこで止まっています。
 
 ![Secure orders](https://user-images.githubusercontent.com/1874516/77242788-a9ce0c00-6bbf-11ea-98e6-c92e8f7c5cfe.png)
 
-## Tracking authentication state
+## 認証しているか確認する
 
-The client code needs a way to track whether the user is logged in, and if so *which* user is logged in, so it can influence how the UI behaves. Blazor has a built-in DI service for doing this: the `AuthenticationStateProvider`.
+クライアントサイドではユーザーが認証された状態か、またそれがどのユーザーか確認する必要があります。Blazor はこの用途で使える `AuthenticationStateProvider` を提供します。`AuthenticationStateProvider` は DI として機能するため扱いが容易です。
 
-Blazor Server comes with a built-in `AuthenticationStateProvider` that hooks into server-side authentication features to determine who's logged in. But Blazor pizza is a Blazor WebAssembly app that runs on the client, so you'll need to implement your own `AuthenticationStateProvider` that gets the login state somehow.
+Blazor サーバーは `AuthenticationStateProvider` をサーバーサイドの認証と連携してログインユーザーを確認できますが、今回のアプリは Blazor WebAssembly アプリのため、クライアント側で `AuthenticationStateProvider` を実装する必要があります。
 
-To start, create a new class named `ServerAuthenticationStateProvider` in the root of your `BlazingPizza.Client` project:
+まず `ServerAuthenticationStateProvider` クラスを `BlazingPizza.Client` プロジェクトのルートに追加します:
 
-```cs
+```csharp
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -56,9 +54,9 @@ namespace BlazingPizza.Client
 }
 ```
 
-... then register this as a DI service in `Program.cs`:
+今は `GetAuthenticationStateAsync` メソッドで常に `Fake user` がログインしている状態を返しています。作成したクラスを `Program.cs` で DI サービスに追加します:
 
-```cs
+```csharp
 public static async Task Main(string[] args)
 {
     var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -77,7 +75,7 @@ public static async Task Main(string[] args)
 }
 ```
 
-To flow the authentication state information through your app, you need to add one more component. In `App.razor`, surround the entire `<Router>` with a `<CascadingAuthenticationState>`:
+認証ステートをクライアントサイドに渡すため、もう一つコンポーネントを追加します。`App.razor` で `<Router>` を `<CascadingAuthenticationState>` で囲みます:
 
 ```html
 <CascadingAuthenticationState>
@@ -87,13 +85,13 @@ To flow the authentication state information through your app, you need to add o
 </CascadingAuthenticationState>
 ```
 
-At first this will appear to do nothing, but in fact this has made available a *cascading parameter* to all descendant components. A cascading parameter is a parameter that isn't passed down just one level in the hierarchy, but through any number of levels.
+挙動に変化が無いように見えるかもしれませんが、これで直下のコンポーネントだけでなく、依存する全てのコンポーネントに*パラメーターのカスケード*が行えるようになり、認証ステートも渡せるようになります。
 
-Finally, you're ready to display something in the UI!
+最後に UI をカスタマイズしましょう。
 
-## Displaying login state
+## ログイン状態の表示
 
-Create a new component called `LoginDisplay` in the client project's `Shared` folder, containing:
+`LoginDisplay` コンポーネントを `Shared` フォルダに追加します:
 
 ```html
 <div class="user-info">
@@ -115,11 +113,11 @@ Create a new component called `LoginDisplay` in the client project's `Shared` fo
 </div>
 ```
 
-`<AuthorizeView>` is a built-in component that displays different content depending on whether the user meets specified authorization conditions. We didn't specify any authorization conditions, so by default it considers the user authorized if they are authenticated (logged in), otherwise not authorized.
+`<AuthorizeView>` は Blazor のビルトインコンポーネントで、認証ステートによって表示する画面を変えられます。また認可ステートの条件も指定できますが、ここでは特別な条件を指定していません。既定ではユーザーがログインしていると認可もされているとみなします。
 
-You can use `<AuthorizeView>` anywhere you need UI content to vary by authorization state, such as controlling the visibility of menu entries based on a user's roles. In this case, we're using it to tell the user who they are, and conditionally show either a "log in" or "log out" link as applicable.
+`<AuthorizeView>` は画面のどこでも利用が可能です。ロールベースでメニューを切り替えたり出来ますが、ここでは単純にログインしているかどうかだけを切り分けていて、ログイン/サインアウトを表示します。
 
-Let's put the `LoginDisplay` in the UI somewhere. Open `MainLayout`, and update the `<div class="top-bar">` as follows:
+`MainLayout` を開いて `<div class="top-bar">` の最後に `LoginDisplay` を追加します:
 
 ```html
 <div class="top-bar">
@@ -129,27 +127,27 @@ Let's put the `LoginDisplay` in the UI somewhere. Open `MainLayout`, and update 
 </div>
 ```
 
-Because you're supplying fake login information, the user will appear to be signed in as "Fake user", and clicking the "sign out" link will not change that:
+現在は `GetAuthenticationStateAsync` で常にログインしている状態を返すため、アプリでも `Fake User` でログインしている状態として表示されます。このため "sign out" リンクも機能しません:
 
 ![Fake user](https://user-images.githubusercontent.com/1874516/77243292-a6d61a00-6bc5-11ea-8250-d841988b6dda.png)
 
-Note that you still can't retrieve any order information. The server won't be fooled by the fake login information.
+しかしサーバーサイドではこの偽ログインは有効でないため、注文情報は依然として取得できません。
 
-## Signing in for real with Twitter
+## Twitter 連携でログインする
 
-Your application is going to use cookie-based authentication. The mechanism is as follows:
+アプリでクッキーベースの認証を実装します。クッキーベース認証は以下のように機能します:
 
-1. The client asks the server whether the user is logged in.
-1. The server uses ASP.NET Core's built-in cookie-based authentication system to track logins, so it can respond to the client's query with the authenticated username.
-1. If the client asks the server to begin the sign-in flow, the server uses ASP.NET Core's built-in federated OAuth support to redirect to Twitter's login page. However you could easily reconfigure this to use Google or Facebook login, or even to use ASP.NET Core's built in *Identity* system, which is a standalone user database.
-1. After the user logs in with Twitter or another authentication provider, the server sets an authentication cookie so that subsequent queries in step 1 will return the authenticated username.
-1. The client app restarts, and this time shows whatever username the server returns.
-1. Subsequent HTTP requests to API endpoints on `OrdersController` will include the cookie, so the server will be able to authorize the request.
-1. If the client wants the user to log out, it calls an endpoint on the server that will clear the authentication cookie.
+1. クライアントからサーバーサイドにユーザーがログインしているか確認。
+1. サーバーサイドは ASP.NET Core のビルトインクッキーベース認証を使ってログインを追跡しているため、クライアントにユーザー名を含めた認証情報を返せる
+1. クライアントがサーバーサイドに認証フローを依頼した場合、サーバーサイドは ASP.NET Core のビルトイン OAuth 認証を使って Twitter のログインページにリダイレクト。Twitter 以外にも Google や Facebook ログインもサポートしているため簡単に構成出来るうえ、独自データベースで認証する *Identity* システムもサポート。
+1. ユーザーがログインしたら認証クッキーを付与。このクッキーにはユーザー名も含まれる。
+1. クライアントアプリが再起動し、サーバーより返ったユーザー名を表示。
+1. 以降の `OrdersController` に対する HTTP 要求にクッキーを含め、サーバーサイドで認可できるようになる。
+1. サインアウトを要求した場合、サーバーサイドで認証クッキーを削除。
 
-You'll notice that, in `LoginDisplay`, the "sign in" and "sign out" links take you to server-side endpoints implemented on `UserController` in `BlazingPizza.Server`. Have a look at the code in that controller and see how it uses ASP.NET Core's server-side APIs to handle the redirections.
+`LoginDisplay` の "sign in" と "sign out" リンクは `BlazingPizza.Server` プロジェクトの `UserController` へのリンクとなっています。 コードを確認してどのように認証をハンドルしているか確認してください。
 
-What's missing currently is having your client-side app query the server to ask for the current login state. Go back to `ServerAuthenticationStateProvider`, and modify its logic as follows:
+次にクライアントからサーバーに対してログイン状態の確認を行います。`ServerAuthenticationStateProvider` に戻ってロジックを以下のように変更します:
 
 ```cs
 using System.Net.Http;
@@ -183,27 +181,27 @@ namespace BlazingPizza.Client
 }
 ```
 
-Try it out now. Initially, the request to `/user` will return data saying you're logged out, so that's what your authentication state provider will flow through the UI &mdash; you'll see a *Sign in* link.
+アプリを起動すると `/user` エンドポイントはログアウト状態であることを返します。そのため、UI では *Sign in* リンクが表示されます。
 
-When you click "sign in", you should actually be able to sign in with Twitter and then see your username in the UI.
+"sign in" をクリックすると Twitter ログインへリダイレクトされ、ログインが実行されます。ログインが完了すると画面にユーザー名が表示されます。
 
-> Tip: If after logging in, the flow doesn't complete, it probably means your application is running on the wrong port. Change the port to port `64589` or `64590` by editing  `BlazingPizza.Server/Properties/launchSettings.json`, and try again.
+> Tip: ログインがうまく出来ない場合、バックエンドサーバーのポートが `64589` か `64590` でない可能性があります。`BlazingPizza.Server/Properties/launchSettings.json` の設定を見直してポートを直してください。
 
 ![Signed in](https://user-images.githubusercontent.com/1874516/77243353-5d39ff00-6bc6-11ea-8962-8ed862c50c4b.png)
 
-For the OAuth flow to succeed in this example, you *must* be running on `http(s)://localhost:64589` or `http(s)://localhost:64590`, and not any other port. That's because the Twitter application ID in `appsettings.Development.json` references an application configured with those values. To deploy a real application, you'll need to use the [Twitter Developer Console](https://developer.twitter.com/apps) to register a new application, get your own client ID and secret, and register your own callback URLs.
+OAuth フローが正常に終了するには、バックエンドサーバーが `http(s)://localhost:64589` か `http(s)://localhost:64590` で起動している必要があります。異なるポートで起動する場合は、`BlazingPizza.Server/Properties/launchSettings.json` を見直してください。Twitter との連携情報は `appsettings.Development.json` に保存されています。独自に連携させたい場合は、[Twitter 開発者コンソール](https://developer.twitter.com/apps) よりアプリケーションを登録して、アプリケーション ID とシークレットを取得することもできます。この場合、任意のコールバック URL を指定する事ができます。
 
-Because the authentication state is persisted by the server in a cookie, you can freely reload the page and the browser will stay logged in. You can also click *Sign out* to hit the server-side endpoint that will clear the authentication cookie then redirect back.
+認証の情報はバックエンドでクッキーに保存されるため、アプリケーションを再読み込みしてもログイン状態は維持されます。*Sign out* をクリックして認証クッキーを削除するとログアウト状態に戻ります。
 
-## Ensuring authentication before placing an order
+## 注文を行う前に認証を強制する
 
-If you're now logged in, you'll be able to place orders and see order status. But if you log out then make another attempt to place an order, bad things will happen. The server will reject the `POST` request, causing a client-side exception, but the user won't know why.
+ログインした状態であれば、注文の実行も既存の注文の取得もできるようになりました。しかしログアウトした状態では引き続きそれらの操作は出来ませんが、UI にはエラーが表示されないため、ユーザー視点ではアプリが動作しない理由が分かりません。
 
-To fix this, let's make the UI prompt the user to log in (if necessary) as part of placing an order.
+この問題を解消するために、必要に応じてサインイン画面にリダイレクトできるようにします。
 
-In the `Checkout` page component, add an `OnInitializedAsync` with some logic to to check whether the user is currently authenticated. If they aren't, send them off to the login endpoint.
+`Checkout` コンポーネントに `OnInitializedAsync` を追加して、ユーザーの認証ステートを確認します。もしログインしていない場合は、*Sign in* ページにリダイレクトします。
 
-```cs
+```csharp
 @code {
     [CascadingParameter] public Task<AuthenticationState> AuthenticationStateTask { get; set; }
 
@@ -222,9 +220,9 @@ In the `Checkout` page component, add an `OnInitializedAsync` with some logic to
 }
 ```
 
-Try it out: now if you're logged out and get to the checkout screen, you'll be redirected to log in. The value for the `[CascadingParameter]` comes from your `AuthenticationStateProvider` via the `<CascadingAuthenticationState>` you added earlier.
+これでアプリを起動してログアウト後、チェックアウト画面まで来ると、*Sign in* 画面にリダイレクトされます。`[CascadingParameter]` は `App` コンポーネントで指定した `<CascadingAuthenticationState>` 経由で `AuthenticationStateProvider` が渡されたものです。
 
-But do you notice something a bit awkward about it? It still shows the checkout UI briefly before the browser loads the Twitter login page. We can fix that easily by wrapping the "checkout" UI inside an `<AuthorizeView>`. Update the markup in `Checkout.razor` as follows:
+しかし、注意深く画面を見ると、Twitter のログインページが出る前に、一瞬チェックアウト画面が表示されます。この動作を解消したい場合、`<AuthorizeView>` を使用して画面を分けることが可能です。`Checkout.razor` のマークアップを変更します:
 
 ```html
 <div class="main">
@@ -239,35 +237,40 @@ But do you notice something a bit awkward about it? It still shows the checkout 
 </div>
 ```
 
-That's better! Now you don't get the awkward brief appearance of a non-applicable bit of UI, and you can't possibly click the *Place order* button really quickly before the redirection completes.
+これで認証されていない場合には "Redirecting you..." が表示され、チェックアウト画面は見えません。
 
-## Preserving order state across the redirection flow
+## 注文の情報を画面遷移時にも保持する
 
-We've just introduced a pretty serious defect into the application. Since you're building a client-side SPA, the application state (such as the current order) is held in the browser's memory. When you redirect away to log in, that state is discarded. When the user is redirected back, their order has now become empty!
+Blazor はクライアントサイドの SPA である為、注文などのアプリケーションステートはクライアントサイドにキャッシュされています。そのため、Twitter のログイン画面などに遷移するとステート情報が失われ、結果として注文情報が失われます。
 
-Check you can reproduce this bug. Start logged out, and build an order. Then go to the checkout screen via the redirection. When you get back to the app, you should be able to see your order contents were lost. This is a common concern with browser-based single-page applications (SPAs), but fortunately there are straightforward solutions.
+この問題は以下の手順で再現できます。
 
-We'll fix the bug by persisting the order state in the browser's `localStorage`. Since `localStorage` is a JavaScript API, we can reach it using *JavaScript interop*. Go back to `Checkout.razor` and at the top, inject an instance of `IJSRuntime`:
+1. アプリを起動して、ログアウト状態にする。
+1. ピザを選択して注文を作る。
+1. チェックアウト画面に遷移して Twitter ログインをする。
+1. アプリに戻ってくると注文の中身が消失する。
 
-```cs
+これは SPA 共通の課題ですが、解決方法は簡単で、ステートをブラウザの `localStorage` に保存することです。 `localStorage` は JavaScript API のため、*JavaScript interop* 機能を使います。`Checkout.razor` に戻って `IJSRuntime` インスタンスをインジェクトします:
+
+```csharp
 @inject IJSRuntime JSRuntime
 ```
 
-Then, inside `OnInitializedAsync`, add the following line just above the `NavigationManager.NavigateTo` call:
+`OnInitializedAsync` メソッドの `NavigationManager.NavigateTo` の前に以下のコードを追加します:
 
-```cs
+```csharp
 await LocalStorage.SetAsync(JSRuntime, "currentorder", OrderState.Order);
 ```
 
-You'll learn much more about JavaScript interop in later part of this workshop, so you don't need to get too deep into this right now. But if you want, have a look at the implementation of `LocalStorage.cs` in `BlazingPizza.ComponentsLibrary` and `localStorage.js` - there's not much to it.
+*JavaScript interop* については後のセッションでも扱うためここでは詳細は説明しませんが、この方法で JavaScript API が利用できる事だけ覚えておいてください。実装は `BlazingPizza.ComponentsLibrary` プロジェクトの `LocalStorage.cs` と `localStorage.js` にあります。
 
-Now you've done this, the current order state will be persisted in JSON form in `localStorage` right before the redirection occurs. You can see the data using the browser's JavaScript console after executing this code path:
+これで画面遷移の直前にアプリケーションステートが JSON 形式で保存されます。ブラウザのコンソールでその情報を確認できます。
 
 ![image](https://user-images.githubusercontent.com/1101362/59276103-90258e80-8c55-11e9-9489-5625f424880f.png)
 
-This is still not quite enough, because even though you're saving the data, you're not yet reloading it when the user returns to the app. Add the following logic at the bottom of `OnInitializedAsync` in `Checkout.razor`:
+データの保存を行ったので、次はデータの取り出しを行います。`Checkout.razor` の `OnInitializedAsync` メソッドに以下コードを追加します:
 
-```cs
+```csharp
 // Try to recover any temporary saved order
 if (!OrderState.Order.Pizzas.Any())
 {
@@ -285,37 +288,35 @@ if (!OrderState.Order.Pizzas.Any())
 }
 ```
 
-You'll also need to add the following method to `OrderState` to accept the loaded order:
+また `OrderState` クラスで読み込まれた注文を受け取れるようにします:
 
-```cs
+```csharp
 public void ReplaceOrder(Order order)
 {
     Order = order;
 }
 ```
 
-Now you should no longer be able to reproduce the "lost order state" bug. Your order should be preserved across the redirection flow.
+上記の実装で、画面遷移時にアプリケーションステートが失われる問題は解決しました。アプリを起動して再現試験を行ってください。
 
-## Handling signed-out users on "My orders"
+## 非ログインユーザーの "My orders" 画面制御
 
-If you're signed out and visit "My orders", the server will reject the request to `/orders`, causing a client-side exception (try it and see). To avoid this, we should change the UI so that it displays a notice about needing to log in instead. How should we do this?
+ログインしていない状態で "My orders" ページを開くと、`/order` エンドポイントに拒否されるため、クライアントサイドで例外処理が発生します。ユーザーにログインするように促す方が意味がある為、改修していきます。
 
-There are three basic ways to interact with the authentication/authorization system inside components. We've already seen two of them:
+コンポーネント内で認証/認可をハンドルする基本的な方法は 3 種類あります。既に以下の 2 種類は見てきました:
 
- * You can use `<AuthorizeView>`. This is useful when you just need to vary some UI content according to authorization status.
- * You can use a `[CascadingParameter]` to receive a `Task<AuthenticationState>`. This is useful when you want to use the `AuthenticationState` in procedural logic such as an event handler.
+ * `<AuthorizeView>` の利用: 認証ステートや認可の条件によって UI を切り替えることができます。
+ * `[CascadingParameter]` 経由で `Task<AuthenticationState>` を受け取る: イベントハンドラーのロジックなどで `AuthenticationState` を利用する際に利用でます。
 
-The third way, which we'll use here, is:
+ここでは新たに `@page` ディレクティブに `[Authorize]` 属性を指定する方法を使います。この方法はページ自体のアクセスを制御する場合に便利です。
 
- * You can place an `[Authorize]` attribute on a routable `@page` component. This is useful if you want to control the reachability of an entire page based on authorization conditions.
+`MyOrders` コンポーネントの `@page` ディレクティブにの下に以下ラインを追加します:
 
-So, go to `MyOrders`, and and put the following directive at the top (just under the `@page` line):
-
-```cs
+```csharp
 @attribute [Authorize]
 ```
 
-The `[Authorize]` functionality is part of the routing system, and we'll need to make some changes there. In `App.razor`, replace `<RouteView ../>` with `<AuthorizeRouteView .../>`.
+`[Authorize]` 属性を指定するとルーティングシステムの一部として機能します。また `App.razor` で `<RouteView ../>`  `<AuthorizeRouteView .../>` に変更する必要があります:
 
 ```html
 <CascadingAuthenticationState>
@@ -328,13 +329,11 @@ The `[Authorize]` functionality is part of the routing system, and we'll need to
 </CascadingAuthenticationState>
 ```
 
-The `AuthorizeRouteView` component is like `RouteView` in that it can display a routable component and it's layout, but also integrates with `[Authorize]`.
+`AuthorizeRouteView` コンポーネントは `RouteView` と同等の機能があり、さらに `[Authorize]` 属性と連動します。
 
----
+これでログインしたユーザーは *My orders* ページにアクセスできますが、ログインしていないユーザーはページにアクセスすると *Not authorized* というメッセージが表示されます。
 
-Now, logged in users can reach the *My orders* page, but logged out users will see the message *Not authorized* instead. Verify you can see this working.
-
-Finally, let's be a bit friendlier to logged out users. Instead of just saying *Not authorized*, we can customize this to display a link to sign in. Go to `App.razor`, and pass the following `<NotAuthorized>` and `<Authorizing>` parameters to the `<AuthorizeRouteView>`:
+最後にメッセージを少しカスタマイズしてみます。単に *Not authorized* と表示する代わりに *Sign in* へのリンクを表示します。`App.razor` の `<NotAuthorized>` セクションと `<Authorizing>` セクションを以下のように変更します:
 
 ```html
 <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
@@ -351,40 +350,38 @@ Finally, let's be a bit friendlier to logged out users. Instead of just saying *
 </AuthorizeRouteView>
 ```
 
-Now if you're logged out and try to go to *My orders*, you'll get a much nicer outcome:
+アプリを起動して、ログアウトした状態で *My orders* へ移動すると、既定よりは良い画面が表示されます:
 
 ![image](https://user-images.githubusercontent.com/1101362/51807840-11225180-2284-11e9-81ed-ea9caacb79ef.png)
 
-## Handling signed-out users on "Order details"
+## 非ログインユーザーの注文詳細画面制御
 
-If you directly browse to `/myorders/1` while signed out, you'll get a strange message:
+続いて注文詳細の画面です。ログインしていない状態で `/myorders/1` を開くと、以下の画面が表示されます。
 
 ![image](https://user-images.githubusercontent.com/1101362/51807869-5f375500-2284-11e9-8417-dcd572cd028d.png)
 
-Once again, this is because the server is rejecting the query for order details while signed out.
+先ほど同様、ログインしていない状態ではバックエンドで処理を拒否される為です。
 
-But you can fix this trivially: just use `[Authorize]` on `OrderDetails.razor` in the same way you did on `MyOrders.razor`. Try it out! It will display the same "please sign in" prompt to unauthenticated visitors.
+こちらも同じく、`OrderDetails.razor` で `[Authorize]` を指定することで対処できます。
 
-## Authorizing access to specific order details
+## データアクセスの認可
 
-Although the server requires authentication before accepting queries for order information, it still doesn't distinguish between users. All signed-in users can see the orders from all other signed-in users. We have authentication, but no authorization!
+バックエンドで認証 (Authentication) を必須にしましたが、ユーザーの識別 (Authorization) まではしていないため、全ての注文が見える状況は変わっていません。
 
-To verify this, place an order while signed in with one Twitter account. Then sign out and back in using a different Twitter account. You'll still be able to see the same order details.
+バックエンドでもユーザーを識別することは簡単です。ここでは `OrdersController` を改修して、自分自身の注文だけを取得できるようにします。まずはクライアントサイドから注文を作成する際に、ユーザー Id を指定します。`PlaceOrder` メソッドでコメントアウトされている以下コードを有効にします:
 
-This is easily fixed. Back in the `OrdersController` code, look for the commented-out line in `PlaceOrder`, and uncomment it:
-
-```cs
+```csharp
 order.UserId = GetUserId();
 ```
 
-Now each order will be stamped with the ID of the user who owns it.
+これで各注文にユーザー ID の情報が付与されます。
 
-Next look for the commented-out `.Where` lines in `GetOrders` and `GetOrderWithStatus`, and uncomment both. These lines ensure that users can only retrieve details of their own orders:
+次に、`OrderController` の `GetOrders` および `GetOrderWithStatus` メソッドでコメントアウトされている `.Where` コードを有効にします。この変更により、クエリでユーザー ID が利用されます:
 
 ```csharp
 .Where(o => o.UserId == GetUserId())
 ```
 
-Now if you run the app again, you'll no longer be able to see the existing order details, because they aren't associated with your user ID. If you place a new order with one Twitter account, you won't be able to see it from a different Twitter account. That makes the application much more useful.
+アプリを起動して 'My Orders' に行くと何も注文が表示されません。原因は過去の注文データにはユーザー ID が含まれていないからです。新規に注文を作成して、意図したとおりに動作するか確認してください。また別の Twitter アカウントでログインした場合に、他ユーザーの注文が取得できない事も確認してみてください。
 
-Next up - [JavaScript interop](07-javascript-interop.md)
+次のセッションは - [JavaScript interop](07-javascript-interop.md) です。

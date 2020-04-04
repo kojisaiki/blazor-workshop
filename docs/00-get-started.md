@@ -1,13 +1,13 @@
-# Get started
+# 初めに
 
-In this session, you'll setup your machine for Blazor development and build your first Blazor app.
+このセッションでは開発環境の準備と、最初の Blazor アプリの作成を行います。
 
-## Setup
+## セットアップ
 
-To get started with Blazor, follow the instructions on https://aka.ms/blazor-getting-started.
+Blazor を始めるにあたり、[ASP.NET Core Blazor の概要](https://docs.microsoft.com/ja-jp/aspnet/core/blazor/get-started?view=aspnetcore-3.1&tabs=visual-studio) の手順にそって環境構築を行ってください。
 
-## Build your first app
+## Blazor アプリの作成
 
-Once you have your first Blazor app running, try [building your first Blazor app](https://docs.microsoft.com/aspnet/core/tutorials/build-your-first-blazor-app).
+セットアップが終わったら [最初の Blazor アプリをビルドする](https://docs.microsoft.com/ja-jp/aspnet/core/tutorials/build-your-first-blazor-app?view=aspnetcore-3.1) を試してください。セッションでは使いませんが、一度プロジェクトから作成することで、より理解が深まります。
 
-Next up - [Components and layout](01-components-and-layout.md)
+次のセッションは [コンポーネントとレイアウト](01-components-and-layout.md) です。

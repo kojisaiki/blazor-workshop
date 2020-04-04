@@ -1,10 +1,10 @@
-# Show order status
+# 注文ステータスの表示
 
-Your customers can order pizzas, but so far have no way to see the status of their orders. In this session you'll implement a "My orders" page that lists multiple orders, plus an "Order details" view showing the contents and status of an individual order.
+ユーザーはピザを注文できますが、注文のステータスが確認できません。このセッションでは "My orders" ページを追加して複数の注文を確認できるようにします。また "Order details" で注文の詳細も表示できるようにします。
 
-## Adding a navigation link
+## ナビゲーションリンクの追加
 
-Open `Shared/MainLayout.razor`. As an experiment, let's try adding a new link element *without* using `NavLink`. Add a plain HTML `<a>` tag pointing to `myorders`:
+`Shared/MainLayout.razor` を開きます。実験として HTML の `<a>` タグをメニューに追加して `myorders` へのリンクを作成します:
 
 ```html
 <div class="top-bar">
@@ -17,30 +17,29 @@ Open `Shared/MainLayout.razor`. As an experiment, let's try adding a new link el
 </div>
 ```
 
-> Notice how the URL we're linking to does *not* start with a `/`. If you linked to `/myorders`, it would appear to work the same, but if you ever wanted to deploy the app to a non-root URL the link would break. The `<base href="/">` tag in `index.html` specifies the prefix for all non-slash-prefixed URLs in the app, regardless of which component renders them.
+> ここではリンクのアドレスが `/` から始まっていません。もし `/myorders` にリンクした場合、一見同じ動作をしますが、将来的にアプリをルートではない場所に配置した場合、リンクをすべて直す必要があります。Blazor は `index.html` にある `<base href="/">` でベースのアドレスを指定でき、`/` から始まらないアドレスは、このベースが補完されます。
 
-If you run the app now, you'll see the link, styled as expected:
+アプリを起動してメニューを確認します。
 
 ![My orders link](https://user-images.githubusercontent.com/1874516/77241321-a03ba880-6bad-11ea-9a46-c73be397cb5e.png)
 
+現時点では `<NavLink>` を使いたい理由はまだ分かりませんが、後で詳細を見ていきます。
 
-This shows it's not strictly necessary to use `<NavLink>`. We'll see the reason to use it momentarily.
+## "My Orders" ページの追加
 
-## Adding a "My Orders" page
+"My Orders" リンクをクリックすると "Page not found" が表示されます。これは当然、`myorders` のアドレスに一致するページが無いためですが、動作をよく見るとクライアントサイドのナビゲーションだけでなく、画面全体のリロードが発生していることが分かります。
 
-If you click "My Orders", you'll end up on a page that says "Page not found". Obviously this is because you haven't yet added anything that matches the URL `myorders`. But if you're watching really carefully, you might notice that on this occasion it's not just doing client-side (SPA-style) navigation, but instead is doing a full-page reload.
+以下に何が起きているかの詳細を説明します。
 
-What's really happening is this:
+1. `myorders` リンクをクリック
+2. Blazor はクライアントサイドのコンポーネントで `@page` ディレクティブに一致するアドレスがあるか確認
+3. 見つからない場合、サーバーサイドのページであると推測してページ全体をリロード
+4. サーバー側でも該当のページが無い場合、Blazor はフォールバックオプションに従って画面を描画
+5. 今回の場合、クライアントサイドにもサーバーサイドにも一致するページが無いため、`App.razor` に定義されている `NotFound` を描画
 
-1. You click on the link to `myorders`
-2. Blazor, running on the client, tries to match this to a client-side component based on `@page` directive attributes.
-3. However, no match is found, so Blazor falls back on a full-page load navigation in case the URL is meant to be handled by server-side code.
-4. However, the server doesn't have anything that matches this either, so it falls back on rendering the client-side Blazor application.
-5. This time, Blazor sees that nothing matches on either client *or* server, so it falls back on rendering the `NotFound` block from your `App.razor` component.
+つまり、必要に応じて `App.razor` の `NotFound` 内容を変更することでエラー画面を変更できます。
 
-If you want to, try changing the content in the `NotFound` block in `App.razor` to see how you can customize this message.
-
-As you can guess, we will make the link actually work by adding a component to match this route. Create a file in the `Pages` folder called `MyOrders.razor`, with the following content:
+では実際にページを追加します。`MyOrders.razor` を `Pages` フォルダに追加し、`@page` ディレクティブにパスを定義します:
 
 ```html
 @page "/myorders"
@@ -50,17 +49,17 @@ As you can guess, we will make the link actually work by adding a component to m
 </div>
 ```
 
-Now when you run the app, you'll be able to visit this page:
+アプリを起動して動作を確認します。
 
 ![My orders blank page](https://user-images.githubusercontent.com/1874516/77241343-fc9ec800-6bad-11ea-8176-febf614ed4ad.png)
 
-Also notice that this time, no full-page load occurs when you navigate, because the URL is matched entirely within the client-side SPA. As such, navigation is instantaneous.
+今回はクライアントサイドでページが見つかるため、SPA 内でナビゲーションが完結し、ページ全体がリロードされることはありません。
 
-## Highlighting navigation position
+## ナビゲーションメニューのハイライト
 
-Look closely at the top bar. Notice that when you're on "My orders", the link *isn't* highlighted in yellow. How can we highlight links when the user is on them? By using a `<NavLink>` instead of a plain `<a>` tag. The only thing a `NavLink` does is toggle its own `active` CSS class depending on whether it matches the current navigation state.
+メニューバーをよく見ると、"My orders" を選択してもハイライト表示がされていません、`<a>` タグの代わりに `<NavLink>` を使いたい理由はここにあります。`<NavLink>` は指定されているリンクとアプリのアドレスが一致した場合、`active` クラスを自動で追加するため、CSS でのスタイリングが容易になります。
 
-Replace the `<a>` tag you just added in `MainLayout` with the following (which is identical apart from the tag name):
+`MainLayout` にある `<a>` タグを `<NavLink>` に変更します:
 
 ```html
 <NavLink href="myorders" class="nav-tab">
@@ -69,19 +68,19 @@ Replace the `<a>` tag you just added in `MainLayout` with the following (which i
 </NavLink>
 ```
 
-Now you'll see the links are correctly highlighted according to navigation state:
+アプリを起動してハイライトを確認します。スタイリングは site.css の active を参照してください。
 
 ![My orders nav link](https://user-images.githubusercontent.com/1874516/77241358-412a6380-6bae-11ea-88da-424434d34393.png)
 
-## Displaying the list of orders
+## 注文の一覧表示
 
-Switch back to the `MyOrders` component code. Once again we're going to inject an `HttpClient` so that we can query the backend for data. Add the following under the `@page` directive line:
+`MyOrders` に戻り、`HttpClient` を DI 経由で取得してバックエンド API を呼び出します。`@page` ディレクティブの下に以下コードを追加します。:
 
 ```html
 @inject HttpClient HttpClient
 ```
 
-Then add a `@code` block that makes an asynchronous request for the data we need:
+続いて `@code` に注文一覧を保持するプロパティを追加します:
 
 ```csharp
 @code {
@@ -94,13 +93,13 @@ Then add a `@code` block that makes an asynchronous request for the data we need
 }
 ```
 
-Let's make the UI display different output in three different cases:
+UI は 3 つの場合で表示を切り替えます
 
- 1. While we're waiting for the data to load
- 2. If it turns out that the user has never placed any orders
- 3. If the user has placed one or more orders
+ 1. データのロード中
+ 2. 注文が無い場合
+ 3. 注文がある場合
 
-It's simple to express this using `@if/else` blocks in Razor code. Update the markup inside your component as follows:
+Razor の `@if/else` を使って場合分けを行います:
 
 ```html
 <div class="main">
@@ -119,34 +118,31 @@ It's simple to express this using `@if/else` blocks in Razor code. Update the ma
     }
 </div>
 ```
+何か所は新しい記述があるため以下で説明します。
 
-Perhaps some parts of this code aren't obvious, so let's point out a few things.
+### 1. `<text>` エレメント
 
-### 1. What's a `<text>` element?
+`<text>` は HTML エレメントではなく、Blazor のコンポーネントでもありません。実際コンパイルされた際には削除されます。`<text>` は Razor コンパイラに対して、そのブロックが C# コードではなく文字列であることを明示的に指定します。シンタックス上コードが文字列が不明瞭な場合に指定できます。
 
-`<text>` is *not* an HTML element at all. Nor is it a component. Once the `MyOrders` component is compiled, the `<text>` tag won't exist in the result at all.
+### 2. href="" の意味
 
-`<text>` is a special signal to the Razor compiler that you want to treat its contents as a markup string and *not* as C# source code. It's only used on rare occasions where the syntax would otherwise be ambiguous.
+通常は `<a href="">` のように記述することはありませんが、先述した通り、Blazor では index.html の `<base href="/">` をベースアドレスとして、`/` を持たないアドレスに自動で付与する機能があります。
 
-### 2. What's with href=""?
+### 3. どのように描画されるか
 
-If `<a href="">` (with an empty string for `href`) surprises you, remember that the browser will prefix the `<base href="/">` value to all non-slash-prefixed URLs. So, an empty string is the correct way to link to the client app's root URL.
+コンポーネントで非同期処理がある場合、ページの読み込み直後に一度画面は描画され、非同期処理が終わった際に再描画されます。
 
-### 3. How does this render?
+### 4. データのリセット方法
 
-The asynchronous flow we've implemented above means the component will render twice: once before the data has loaded (displaying "Loading.."), and then once afterwards (displaying one of the other two outputs).
-
-### 4. How can I reset the database?
-
-If you want to reset your database to see the "no orders" case, simply delete `pizza.db` from the Server project and reload the page in your browser.
+データベースのデータを削除して、注文が無い状態を試したい場合は、バックエンドプロジェクトにある `pizza.db` を削除してください。
 
 ![My orders empty list](https://user-images.githubusercontent.com/1874516/77241390-a4b49100-6bae-11ea-8dd4-e59afdd8f710.png)
 
-## Rendering a grid of orders
+## 注文をグリッドで表示
 
-Now we have all the data we need, we can use Razor syntax to render an HTML grid.
+データの取得が完了したため、HTML グリッドに結果を表示します。
 
-Replace the `<text>TODO: show orders</text>` code with the following:
+`<text>TODO: show orders</text>` を以下のコードに変更します:
 
 ```html
 <div class="list-group orders-list">
@@ -173,15 +169,15 @@ Replace the `<text>TODO: show orders</text>` code with the following:
 </div>
 ```
 
-It looks like a lot of code, but there's nothing special here. It simply uses a `@foreach` to iterate over the `ordersWithStatus` and outputs a `<div>` for each one. The net result is as follows:
+多くのコードがあるように見えますが、目新しいものはありません。`ordersWithStatus` を `@foreach` でループ処理して、`<div>` に結果を表示しているだけです。アプリを起動して結果を確認します。
 
 ![My orders grid](https://user-images.githubusercontent.com/1874516/77241415-feb55680-6bae-11ea-89ba-f8367ef6a96c.png)
 
-## Adding an Order Details display
+## 注文詳細画面
 
-If you click on the "Track" link buttons next to an order, the browser will attempt to navigation to `myorders/<id>` (e.g., `http://example.com/myorders/37`). Currently this will result in a "Page not found" message because no component matches this route.
+注文一覧グリッドで `Track` をクリックすると、`myorders/<id>` (例 `http://example.com/myorders/37`) にナビゲートされます。現在は一致するアドレスが無いため、"Page not found" が表示されます。
 
-Once again we'll add a component to handle this. In the `Pages` directory, create a file called `OrderDetails.razor`, containing:
+注文詳細用のページコンポーネント追加していきます。`Pages` フォルダに `OrderDetails.razor` を追加します:
 
 ```html
 @page "/myorders/{orderId:int}"
@@ -195,41 +191,40 @@ Once again we'll add a component to handle this. In the `Pages` directory, creat
 }
 ```
 
-This code illustrates how components can receive parameters from the router by declaring them as tokens in the `@page` directive. If you want to receive a `string`, the syntax is simply `{parameterName}`, which matches a `[Parameter]` name case-insensitively. If you want to receive a numeric value, the syntax is `{parameterName:int}`, as in the example above. The `:int` is an example of a *route constraint*. Other route constraints are supported too.
+`@page` ディレクティブを上記のように記述すると、パラメーターを受け取れます。パスで指定したプロパティは `@code` ブロックにも同じ名前で追加してください。`{parameterName}` の名前は大文字小文字を区別しません。パラメータを数値型で受け取りたい場合は、制約として `{parameterName:int}` と記述できます。`:int` は数値型を制約としますが、他にも様々な制約を指定できます。詳細は[ルート制約](https://docs.microsoft.com/ja-jp/aspnet/core/blazor/routing?view=aspnetcore-3.1#route-constraints)を参照してください。
 
 ![Order details empty](https://user-images.githubusercontent.com/1874516/77241434-391ef380-6baf-11ea-9803-9e7e65a4ea2b.png)
 
-If you're wondering how routing actually works, let's go through it step-by-step.
+ルーティングは以下の順番で機能します。
 
-1. When the app first starts up, code in `Startup.cs` tells the framework to render `App` as the root component.
-2. The `App` component (in `App.razor`) contains a `<Router>`. `Router` is a built-in component that interacts with the browser's client-side navigation APIs. It registers a navigation event handler that gets notification whenever the user clicks on a link.
-3. Whenever the user clicks a link, code in `Router` checks whether the destination URL is within the same SPA (i.e., whether it's under the `<base href>` value, and it matches some component's declared routes). If it's not, traditional full-page navigation occurs as usual. But if the URL is within the SPA, `Router` will handle it.
-4. `Router` handles it by looking for a component with a compatible `@page` URL pattern. Each `{parameter}` token needs to have a value, and the value has to be compatible with any constraints such as `:int`.
-   * If there is a matching component, that's what the `Router` will render. This is how all the pages in your application have been rendering all along.
-   * If there's no matching component, the router tries a full-page load in case it matches something on the server.
-   * If the server chooses to re-render the client-side Blazor app (which is also what happens if a visitor is initially arriving at this URL and the server thinks it may be a client-side route), then Blazor concludes the nothing matches on either server or client, so it displays whatever `NotFound` content is configured.
+1. アプリ起動時に `Startup.cs` よりルートコンポーネントが `App` であることを確認する。
+2. `App.razor` に定義した `App` コンポーネントに `<Router>` があることを確認。`Router` はビルトインコンポーネントの 1 つでブラウザーのナビゲーション API と連携してクライアントサイドのナビゲーションを制御する。
+3. `Router` は `@page` に定義されている URL　のパターンを確認して `{parameter}` トークンよりパラメーターとして必要な値いを渡す。また `:int` のように制約がある場合は型もチェックする。
+   * マッチするコンポーネントがあると `Router` がコンポーネントを読み込む
+   * マッチするコンポーネントが無い場合はページをフルロードしてサーバーサイドで処理をする
+   * サーバーが Blazor アプリの再起動を行った場合は、Blazor 側はサーバーサイドにも一致するページが存在しなかったと判断して`NotFound` を描画する。
 
-## Polling for order details
+## データのポーリング
 
-The `OrderDetails` logic will be quite different from `MyOrders`. Instead of simply fetching the data once when the component is instantiated, we'll poll the server every few seconds for updated data. This will make it possible to show the order status in (nearly) real-time, and later, to display the delivery driver's location on a moving map.
+`OrderDetails` のデータ取得ロジックは `MyOrders` とは異なります。コンポーネントの初期化時にデータを一度だけ取得するのではなく、定期的に最新の情報を取得できるよう、サーバーをポーリングして、画面を更新します。これによりほぼリアルタイムで注文のステータスや配達状況を画面に表示できます。
 
-What's more, we'll also account for the possibility of `OrderId` being invalid. This might happen if:
+さらに `OrderId` についても有効性を検証します。これは以下のシナリオを想定しているためです。
 
-* No such order exists
-* Or later, when we've implemented authentication, if the order is for a different user and you're not allowed to see it
+* 一致する注文が無い場合
+* 後ほど認証を実装した場合、そのオーダーがログインしているユーザーのものでは無い場合
 
-Before we can implement the polling, we'll need to add the following directives at the top of `OrderDetails.razor`, typically directly under the `@page` directive:
+ポーリングを実装する前に、`OrderDetails.razor` の `@page` ディレクティブの下に以下コードを追加します:
 
 ```html
 @using System.Threading
 @inject HttpClient HttpClient
 ```
 
-You've already seen `@inject` used with `HttpClient`, so you know what that is for. Plus, you'll recognize `@using` from the equivalent in regular `.cs` files, so this shouldn't be much of a mystery either. Unfortunately, Visual Studio does not yet add `@using` directives automatically in Razor files, so you do have to write them in yourself when needed.
+`@inject HttpClient HttpClient` はすでに使った事がりますが、`@using` ディレクティブは始めて出てきます。これは C# のコードと同じく名前空間を読み込む機能です。Visual Studio はまだ `@using` を自動で追加しないため、手動で追加する必要があります。
 
-Now you can implement the polling. Update your `@code` block as follows:
+では `@code` にポーリングのロジックを追加します:
 
-```cs
+```csharp
 @code {
     [Parameter] public int OrderId { get; set; }
 
@@ -271,17 +266,17 @@ Now you can implement the polling. Update your `@code` block as follows:
 }
 ```
 
-The code is a bit intricate, so be sure to go through it carefully and be sure to understand each aspect of it. Here are some notes:
+少しコードが長いため、処理内容をしっかり確認してください。
 
-* This uses `OnParametersSet` instead of `OnInitialized` or `OnInitializedAsync`. `OnParametersSet` is another component lifecycle method, and it fires when the component is first instantiated *and* any time its parameters change value. If the user clicks a link directly from `myorders/2` to `myorders/3`, the framework will retain the `OrderDetails` instance and simply update its `OrderId` parameter in place.
-  * As it happens, we haven't provided any links from one "my orders" screen to another, so the scenario never occurs in this application, but it's still the right lifecycle method to use in case we change the navigation rules in the future.
-* We're using an `async void` method to represent the polling. This method runs for arbitrarily long, even while other methods run. `async void` methods have no way to report exceptions upstream to callers (because typically the callers have already finished), so it's important to use `try/catch` and do something meaningful with any exceptions that may occur.
-* We're using `CancellationTokenSource` as a way of signalling when the polling should stop. Currently it only stops if there's an exception, but we'll add another stopping condition later.
-* We need to call `StateHasChanged` to tell Blazor that the component's data has (possibly) changed. The framework will then re-render the component. There's no way that the framework could know when to re-render your component otherwise, because it doesn't know about your polling logic.
+* `OnInitialized` や `OnInitializedAsync` ではなく、`OnParametersSet` をオーバーライドしています。`OnParametersSet` はコンポーネントライフサイクルイベントの 1 つで、コンポーネントの初期化時と、パラメーターの値が変わる度に実行されます。ユーザーが `myorders/2` から `myorders/3` に直接移動した場合、フレームワークは最適化の機能のため `OrderDetails` インスタンスを破棄せず `OrderId` のみを変更します。
+  * 上記シナリオを避けるため、アプリでは注文詳細から他の詳細へ移動するリンクは提供しませんが、いつ変更されるかは分からないため、適切なライフサイクルイベントを使用するよう心がけてください。
+* `async void` メソッドでポーリングを実施しています。処理にエラーが発生した場合、呼び出し元は既に完了しているため `try/catch` を使って例外を投げるようにしてください。
+* `CancellationTokenSource` を使ってポーリング処理を中断できるようにしています。現時点では例外が発生した場合にのみポーリングがキャンセルされます。
+* `StateHasChanged` メソッドを実行することで Blazor アプリで再描画を実行します。他の方法ではフレームワークはいつ画面を描画するべきか分かりません。
 
-## Rendering the order details
+## 注文詳細の表示
 
-OK, so we're getting the order details, and we're even polling and updating that data every few seconds. But we're still not rendering it in the UI. Let's fix that. Update your `<div class="main">` as follows:
+注文詳細データをポーリングで取得できるようになったため、次は画面を描画します。`<div class="main">` を以下のマークアップに変更します:
 
 ```html
 <div class="main">
@@ -313,18 +308,18 @@ OK, so we're getting the order details, and we're even polling and updating that
 </div>
 ```
 
-This accounts for the three main states of the component:
+このマークアップで 3 種類の内容を切り替えます。
 
-1. If the `OrderId` value is invalid (i.e., the server reported an error when we tried to retrieve the data)
-2. If we haven't yet loaded the data
-3. If we have got some data to show
+1. `OrderId` が無効な場合 (例: サーバーがエラーを返した)
+2. データ読み込み中
+3. 表示するデータがある場合
 
 ![Order details status](https://user-images.githubusercontent.com/1874516/77241460-a7fc4c80-6baf-11ea-80c1-3286374e9e29.png)
 
 
-The last bit of UI we want to add is the actual contents of the order. To do this, we'll create another reusable component.
+最後に注文のデータを表示しますが、ここでは再利用可能なコンポーネントを作成します。
 
-Create a new file, `OrderReview.razor` inside the `Shared` directory, and have it receive an `Order` and render its contents as follows:
+`OrderReview.razor` を `Shared` フォルダに追加します。コンポーネントは `Order` パラメータを受け取り描画します:
 
 ```html
 @foreach (var pizza in Order.Pizzas)
@@ -357,7 +352,7 @@ Create a new file, `OrderReview.razor` inside the `Shared` directory, and have i
 }
 ```
 
-Finally, back in `OrderDetails.razor`, replace text `TODO: show more details` with your new `OrderReview` component:
+`OrderDetails.razor` に戻り、`TODO: show more details` の代わりに `OrderReview` を表示します:
 
 ```html
 <div class="track-order-body">
@@ -367,48 +362,46 @@ Finally, back in `OrderDetails.razor`, replace text `TODO: show more details` wi
 </div>
 ```
 
-(Don't forget to add the extra `div` with CSS class `track-order-details`, as this is necessary for correct styling.)
+`track-order-details` クラスを持った `div` は CSS でのスタイリングに使います。
 
-Finally, you have a functional order details display!
+アプリを起動して動作を確認します。
 
 ![Order details](https://user-images.githubusercontent.com/1874516/77241512-2e189300-6bb0-11ea-9740-fe778e0ce622.png)
 
 
-## See it update in realtime
+## 画面のりあうタイム更新を確認する
 
-The backend server will update the order status to simulate an actual dispatch and delivery process. To see this in action, try placing a new order, then immediately view its details.
+バックエンドサーバーには注文のステータス変更をシミュレーションする機能があります。リアルタイムに表示が変わることを確認するため、注文を行ったらすぐに注文詳細に移動します。
 
-Initially, the order status will be *Preparing*, then after 10-15 seconds will change to *Out for delivery*, then 60 seconds later will change to *Delivered*. Because `OrderDetails` polls for updates, the UI will update without the user having to refresh the page.
+始めはステータスが *Preparing* ですが、その後 10-15 秒程度で *Out for delivery* に代わり、60 秒程度で *Delivered* となります。
 
-## Remember to Dispose!
+## Dispose の実装
 
-If you deployed your app to production right now, bad things would happen. The `OrderDetails` logic starts a polling process, but doesn't end it. If the user navigated through hundreds of different orders (thereby creating hundreds of different `OrderDetails` instances), then there would be hundreds of polling processes left running concurrently, even though all except the last were pointless because no UI was displaying their results.
+アプリをこのまま本番環境に展開すると、深刻な問題が発生します。`OrderDetails` のロジックはポーリングを開始しますが、終了することはありません。もしユーザーが異なる注文詳細を何度も表示すると、複数の `OrderDetails` インスタンスが作成され、その分ポーリングも増加しますが、最後に表示した UI に対してしかポーリングの意味がありません。
 
-You can actually observe this chaos yourself as follows:
+この挙動は以下の手順で確認できます。
 
-1. Navigate to "my orders"
-2. Click "Track" on any order to get to its details
-3. Click "Back" to return to "my orders"
-4. Repeat steps 2 and 3 a lot of times (e.g., 20 times)
-5. Now, open your browser's debugging tools and look in the network tab. You should see 20 or more HTTP requests being issued every few seconds, because there are 20 or more concurrent polling processes.
+1. "my orders" を開く。
+2. "Track" をクリックしてして詳細画面へ遷移。
+3. 戻るボタンで "my orders" に戻る。
+4. 20 回ほど繰り返す。
+5. ブラウザの開発者ツールより、ネットワークタブを開くと、詳細画面を開いた分だけの HTTP 通信が残っていることが確認できる
 
-This is wasteful of client-side memory and CPU time, network bandwidth, and server resources.
+この問題を解決するには `OrderDetails` が画面から消えたタイミングでポーリングを停止します。これは `IDisposable` を継承することで実現可能です。
 
-To fix this, we need to make `OrderDetails` stop the polling once it gets removed from the display. This is simply a matter of using the `IDisposable` interface.
-
-In `OrderDetails.razor`, add the following directive at the top of the file, underneath the other directives:
+`OrderDetails.razor` に戻って以下のコードを追加します:
 
 ```html
 @implements IDisposable
 ```
 
-Now if you try to compile the application, the compiler will complain:
+この時点でコンパイルするとエラーとなります。
 
 ```
 error CS0535: 'OrderDetails' does not implement interface member 'IDisposable.Dispose()'
 ```
 
-Resolve this by adding the following method inside the `@code` block:
+`@code` ブロックに Dispose を追加します:
 
 ```cs
 void IDisposable.Dispose()
@@ -417,27 +410,23 @@ void IDisposable.Dispose()
 }
 ```
 
-The framework calls `Dispose` automatically when any given component instance is torn down and removed from the UI.
+これでフレームワークが、コンポーネント破棄のタイミングで `Dispose` メソッドを実行してくれます。再度アプリを起動して、問題が解消したか確認します。
 
-Once you've put in this fix, you can try again to start lots of concurrent polling processes, and you'll see they no longer keep running after the component is gone. Now, the only component that continues to poll is the one that remains on the screen.
+## 注文詳細へ自動でナビゲーションする
 
-## Automatically navigating to order details
+現在は注文を行った際、`Index` コンポーネントでステートがリセットされるだけであり、手動で注文一覧に移動する必要があります。これは良い UX とは言えないため改善しましょう。
 
-Right now, once users place an order, the `Index` component simply resets its state and their order appears to vanish without a trace. This is not very reassuring for users. We know the order is in the database, but users don't know that.
+`Index` コンポーネントに戻り、`NavigationManager` をインジェクトします:
 
-It would be nice if, once the order is placed, you navigated to the details display for that order automatically. This is quite easy to do.
-
-Switch back to your `Index` component code. Add the following directive at the top:
-
-```
+```html
 @inject NavigationManager NavigationManager
 ```
 
-The `NavigationManager` lets you interact with URIs and navigation state. It has methods to get the current URL, to navigate to a different one, and more.
+`NavigationManager` を使うと、ナビゲーションの実行ができる他、現在の URI を取得したりできます。詳細は [URI およびナビゲーション状態ヘルパー](https://docs.microsoft.com/ja-jp/aspnet/core/blazor/routing?view=aspnetcore-3.1#uri-and-navigation-state-helpers) を参照してください。
 
-To use this, update the `PlaceOrder` code so it calls `NavigationManager.NavigateTo`:
+`PlaceOrder` メソッドに `NavigationManager.NavigateTo` を追加します:
 
-```cs
+```csharp
 async Task PlaceOrder()
 {
     var newOrderId = await HttpClient.PostJsonAsync<int>("orders", order);
@@ -446,6 +435,6 @@ async Task PlaceOrder()
 }
 ```
 
-Now as soon as the server accepts the order, the browser will switch to the "order details" display and begin polling for updates.
+アプリを起動して、動作を確認します。
 
-Next up - [Refactor state management](04-refactor-state-management.md)
+次のセッションは [ステート管理のリファクタリング](04-refactor-state-management.md) です。

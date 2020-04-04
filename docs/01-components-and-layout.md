@@ -1,30 +1,30 @@
-# Components and layout
+# コンポーネントとレイアウト
 
-In this session, you'll get started building a pizza store app using Blazor. The app will enable users to order pizzas, customize them, and then track the order deliveries.
+このセッションでは、Blazor を使ってピザを注文できるアプリを開発します。アプリには、ピザのカスタマイズや注文カゴの機能、注文の実行や配送の状況確認行える機能を実装します。
 
-## Pizza store starting point
+## スターティングポイントとなるプロジェクト
 
-We've set up the initial solution for you for the pizza store app in this repo. Go ahead and clone this repo to your machine. You'll find the [starting point](https://github.com/dotnet-presentations/blazor-workshop/tree/master/save-points/00-Starting-point) in the *save-points* folder along with the end state for each session.
+このワークショップでは、開発するアプリのスターティングポイントとなるソリューションが提供されます。*save-points* フォルダにある、[スターティングポイント](https://github.com/dotnet-presentations/blazor-workshop/tree/master/save-points/00-Starting-point)フォルダーを確認してください。また各セッションの終了時点でのソリューションがそれぞれ提供されているため、途中でうまく動かない場合などに、完成したコードと比較することが出来ます。
 
-> Note: If you copy the code from this workshop to a different location on your machine, be sure to also copy the *Directory.Build.props* file at the root of this repo in order to restore the appropriate package versions.
+> メモ: *save-points* フォルダから他のフォルダへコードをコピーする際は、ワークショップフォルダにある *Directory.Build.props* も一緒にコピーしてください。このファイルで必要なパッケージのリストアが行われます。
 
-The solution already contains four projects:
+ソリューションは以下 4 つのプロジェクトで構成されています。
 
 ![image](https://user-images.githubusercontent.com/1874516/77238114-e2072780-6b8a-11ea-8e44-de6d7910183e.png)
 
 
-- **BlazingPizza.Client**: This is the Blazor project. It contains the UI components for the app.
-- **BlazingPizza.Server**: This is the ASP.NET Core project hosting the Blazor app and also the backend services for the app.
-- **BlazingPizza.Shared**: Shared model types for the app.
-- **BlazingPizza.ComponentsLibrary**: A library of components and helper code to be used by the app in later sessions.
+- **BlazingPizza.Client**: UI を提供する Blazor WebAssembly プロジェクト
+- **BlazingPizza.Server**: バックエンドを提供する ASP.NET Core プロジェクト
+- **BlazingPizza.Shared**: モデルを含んだ共通プロジェクト
+- **BlazingPizza.ComponentsLibrary**: Blazor コンポーネントのライブラリ及びヘルパーコードを含んだプロジェクト
 
-The **BlazingPizza.Server** project should be set as the startup project.
+実際に動かしてみましょう。
 
-When you run the app, you'll see that it currently only contains a simple home page.
+**BlazingPizza.Server** プロジェクトをスタートアッププロジェクトに設定してアプリを起動すると、シンプルなページが表示されます。
 
 ![image](https://user-images.githubusercontent.com/1874516/77238160-25fa2c80-6b8b-11ea-8145-e163a9f743fe.png)
 
-Open *Pages/Index.razor* in the **BlazingPizza.Client** project to see the code for the home page.
+**BlazingPizza.Client** プロジェクトの *Pages/Index.razor* ファイルのコードを確認します。
 
 ```
 @page "/"
@@ -32,13 +32,13 @@ Open *Pages/Index.razor* in the **BlazingPizza.Client** project to see the code 
 <h1>Blazing Pizzas</h1>
 ```
 
-The home page is implemented as a single component. The `@page` directive specifies that the `Index` component is a routable page with the specified route.
+トップであるホームページは単一の Blazor コンポーネントで構成されていて、ページになるコンポーネントは、初めにルーティング情報でもある `@page` ディレクティブを指定します。ここではパスがルート (/) として設定されているため、ユーザーがルートにアクセスした際、index ページが描画されます。
 
-## Display the list of pizza specials
+## ピザの一覧を表示する
 
-First we'll update the home page to display the list of available pizza specials. The list of specials will be part of the state of the `Index` component.
+まず、ホームページであり `Index` コンポーネントにピザの一覧を表示する機能を追加します。
 
-Add a `@code` block to *Index.razor* with a list field to keep track of the available specials:
+*Index.razor* に `@code` ブロックを追加して、ピザを保持するリスト型プロパティを指定します。
 
 ```csharp
 @code {
@@ -46,18 +46,20 @@ Add a `@code` block to *Index.razor* with a list field to keep track of the avai
 }
 ```
 
-The code in the `@code` block is added to the generated class for the component. The `PizzaSpecial` type is already defined for you in the Shared project.
+`@code` ブロックに追加したコードはコンポーネントのクラスの一部として扱われます。リストに指定した `PizzaSpecial` 型は Shared プロジェクトで定義されています。
 
-To get the available list of specials we need to call an API on the backend. Blazor provides a preconfigured `HttpClient` through dependency injection that is already setup with the correct base address. Use the `@inject` directive to inject an `HttpClient` into the `Index` component.
+ピザの一覧を取得するには、バックエンドの API を呼び出します。Blazor では、バックエンドのベースアドレスが既に設定された `HttpClient` が Dependency Injection (DI) 経由で提供されます。DI を利用するために `@inject` ディレクティブに `HttpClient` を指定します。
 
-```
+```html
 @page "/"
 @inject HttpClient HttpClient
 ```
 
-The `@inject` directive essentially defines a new property on the component where the first token specified the property type and the second token specifies the property name. The property is populated for you using dependency injection.
+`@inject` ディレクティブには、最初にプロパティの型を指定し、続いてプロパティの名前を指定します。 オブジェクトは DI を通じてコンポーネントに渡されます。
 
-Override the `OnInitializedAsync` method in the `@code` block to retrieve the list of pizza specials. This method is part of the component lifecycle and is called when the component is initialized. Use the `GetJsonAsync<T>()` method to handle deserializing the response JSON:
+`@code` ブロックの `OnInitializedAsync` メソッドで、ピザ一覧を取得します。このメソッドは Blazor コンポーネントのライフサイクルの一部で、コンポーネントが初期化される際に呼び出されます。詳細は [ASP.NET Core Blazor ライフサイクル](https://docs.microsoft.com/ja-jp/aspnet/core/blazor/lifecycle?view=aspnetcore-3.1) を参照してください。
+
+`GetJsonAsync<T>()` メソッドで結果の JSON を任意の型にデシリアライズします。
 
 ```csharp
 @code {
@@ -70,9 +72,9 @@ Override the `OnInitializedAsync` method in the `@code` block to retrieve the li
 }
 ```
 
-The `/specials` API is defined by the `SpecialsController` in the Server project.
+`/specials` API はバックエンドプロジェクトの `SpecialsController` で定義されています。
 
-Once the component is initialized it will render its markup. Replace the markup in the `Index` component with the following to list the pizza specials:
+コンポーネントの初期化が終わるとマークアップが描画されます。`Index` コンポーネントのマークアップを変更して、ピザ一覧を表示します:
 
 ```html
 <div class="main">
@@ -94,16 +96,16 @@ Once the component is initialized it will render its markup. Replace the markup 
 </div>
 ```
 
-Run the app by hitting `Ctrl-F5`. Now you should see a list of the specials available.
+`Ctrl-F5` を押下してアプリをデバッグなしで実行してください。以下のようにピザの一覧が表示されます。スタイリングは `wwwroot/css/site.css` に定義されています。この CSS はこれ以降開発するモジュール用のスタイリングも事前に全て定義されています。
 
 ![image](https://user-images.githubusercontent.com/1874516/77239386-6c558880-6b97-11ea-9a14-83933146ba68.png)
 
 
-## Create the layout
+## レイアウトの作成
 
-Next we'll set up the layout for app. 
+次にアプリのレイアウトを作成します。
 
-Layouts in Blazor are also components. They inherit from `LayoutComponentBase`, which defines a `Body` property that can be used to specify where the body of the layout should be rendered. The layout component for our pizza store app is defined in *Shared/MainLayout.razor*.
+Blazor では、レイアウトもコンポーネントの一種です。`LayoutComponentBase` を継承し、実際のコンテンツが描画される場所に `@Body` プロパティを配置します。今回のアプリでは、*Shared/MainLayout.razor* がレイアウトコンポーネントとなります。
 
 ```html
 @inherits LayoutComponentBase
@@ -113,11 +115,11 @@ Layouts in Blazor are also components. They inherit from `LayoutComponentBase`, 
 </div>
 ```
 
-To see how the layout is associated with your pages, look at the `<Router>` component in `App.razor`. Notice the `DefaultLayout` parameter which determines the layout used for any page that doesn't specify its own layout directly.
+レイアウトとアプリの関連は、`App.razor` の `<Router>` で確認できます。`DefaultLayout` パラメーターに、既定で使用するレイアウトが指定されていて、独自にレイアウト定義を持たないページは、既定レイアウトが適用されます。
 
-You can also override this `DefaultLayout` on a per-page basis. To do so, you can add directive such as `@layout SomeOtherLayout` at the top of any `.razor` page component. However, you don't need to do so in this application.
+任意のページの先頭で `@layout SomeOtherLayout` を指定する事で、ページ単位でレイアウトを上書き出来ます。このアプリケーションでは、既定のレイアウトのみを使用します。
 
-Update the `MainLayout` component to define a top bar with a branding logo and a nav link for the home page:
+`MainLayout` コンポーネントにメニューバーを追加します。ブランドロゴおよびトップページへのリンクも追加しています:
 
 ```html
 @inherits LayoutComponentBase
@@ -136,13 +138,16 @@ Update the `MainLayout` component to define a top bar with a branding logo and a
 </div>
 ```
 
-The `NavLink` component is provided by Blazor. Components can be used from components, which is done by specifying an element with the component's type name along with attributes for any component parameters.
+`NavLink` は Blazor が提供するビルトインコンポーネントです。他のコンポーネントを呼び出す場合は、コンポーネント名を要素名として定義し、パラメータは属性として指定します。
 
-The `NavLink` component is the same as an anchor tag, except that it adds an `active` class if the current URL matches the link address. `NavLinkMatch.All` means that the link should be active only when it matches the entire current URL (not just a prefix). We'll examine the `NavLink` component in more detail in a later session.
+`NavLink` コンポーネントは HTML のアンカータグとほぼ同じですが、現在のアドレスとリンクのアドレスが一致した場合 `active` クラスを付与するため、CSS でのスタリングが容易になります。`NavLinkMatch.All` は現在のアドレスとリンクのアドレスが完全一致した場合という条件です。`NavLink` については後ほど動作をしっかり見ていきます。
 
-Run the app by hitting `Ctrl-F5`. With our new layout our pizza store app now looks like this:
+アプリを起動し、以下のようにメニューが出ることを確認してください。
 
 ![image](https://user-images.githubusercontent.com/1874516/77239419-aa52ac80-6b97-11ea-84ae-f880db776f5c.png)
 
+# まとめ
 
-Next up - [Customize a pizza](02-customize-a-pizza.md)
+このセッションでは、アプリの元となるソリューションの確認と、Dependency Injection の使い方、またコンポーネントの画面描画について見ていきました。
+
+次のセッションは [ピザのカスタマイズ](02-customize-a-pizza.md) です。

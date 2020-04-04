@@ -1,35 +1,33 @@
-# Templated components
+# テンプレート コンポーネント
 
-Let's refactor some of the original components and make them more reusable. Along the way we'll also create a separate library project as a home for the new components.
+幾つかの既存コンポーネントを改修して、再利用可能なコンポーネントにしていきます。また新しいコンポーネント用にソリューションも作成します。
 
-We're going to create a new project using the Razor Class Library template.
+新しいプロジェクトは Razor クラスライブラリプロジェクトテンプレートを使います。
 
-## Creating a component library (Visual Studio)
+## コンポーネントライブラリの作成 (Visual Studio)
 
-Using Visual Studio, right click on `Solution` at the very top of solution explorer, and choose `Add->New Project`. 
+Visual Studio のソリューションエクスプローラーより、ソリューションを右クリックしてプロジェクトを追加します。
 
-Then, select the Razor Class Library template.
+テンプレートで `Razor Class Library` を選択します。
 
 ![image](https://user-images.githubusercontent.com/1430011/65823337-17990c80-e209-11e9-9096-de4cb0d720ba.png)
 
-Enter the project name `BlazingComponents` and click *Create*.
+名前を `BlazingComponents` として作成します。
 
-## Creating a component library (command line)
+## コンポーネントライブラリの作成 (コマンドライン)
 
-To make a new project using **dotnet** run the following commands from the directory where your solution file exists.
+コマンドラインからも **dotnet** コマンドでプロジェクトの作成ができます。以下のコマンドを実行します。
 
-```
+```shell
 dotnet new razorclasslib -o BlazingComponents
 dotnet sln add BlazingComponents
 ```
 
-This should create a new project called `BlazingComponents` and add it to the solution file.
+これで `BlazingComponents` プロジェクトが作成されます。
 
-## Understanding the library project
+## ライブラリプロジェクトを理解する
 
-Open the project file by double-clicking on the *BlazingComponents* project name in *Solution explorer*. We're not going to modify anything here, but it would be good to understand a few things.
-
-It looks like:
+ソリューションエクスプローラーより *BlazingComponents* をダブルクリックして開きます:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.Razor">
@@ -47,23 +45,25 @@ It looks like:
 </Project>
 ```
 
-There are a few things here worth understanding. 
+幾つか重要な点があります。
 
-Firstly, the package targets `netstandard2.1`. Blazor Server uses `netcoreapp3.1` and Blazor WebAssembly uses `netstandard2.1` - so targeting `netstandard2.0` means that it will work for either scenario.
+パッケージは `netstandard2.0` をターゲットにしています。Blazor サーバーは `netcoreapp3.1` ベースで、Blazor WebAssembly は `netstandard2.1` ベースのため、`netstandard2.0` であればどちらでも利用が可能です。
 
-Additional, the `<RazorLangVersion>3.0</RazorLangVersion>` sets the Razor language version. Version 3 is needed to support components and the `.razor` file extension. 
+`<RazorLangVersion>3.0</RazorLangVersion>` は Razor のバージョンを指定しています。バージョン 3 は `.razor` 拡張子のファイルを扱えます。
 
-Lastly the `<PackageReference />` element adds a package references to the Blazor component model.
+最後に `<PackageReference />` で必要な Blazor コンポーネントパッケージを参照しています。
 
-## Writing a templated dialog
+## テンプレートダイアログの開発
 
-We are going to revisit the dialog system that is part of `Index` and turn it into something that's decoupled from the application.
+現在の `index` コンポーネントを振り返り、幾つかの要素を疎結合なコンポーネントへとリファクタリングします。
 
-Let's think about how a *reusable dialog* should work. We would expect a dialog component to handle showing and hiding itself, as well as maybe styling to appear visually as a dialog. However, to be truly reusable, we need to be able to provide the content for the inside of the dialog. We call a component that accepts *content* as a parameter a *templated component*.
+*再利用可能なダイアログ*を考えると、表示/非表示の制御の他、独自のスタイリングをサポートする必要があります。また真に再利用可能である為には、ヘッダーやコンテンツなどをパラメーターとして渡せることが必要です。コンテンツをパラメータとして渡せるコンポーネントのことを*テンプレート コンポーネント*と呼びます。
 
-Blazor happens to have a feature that works for exactly this case, and it's similar to how a layout works. Recall that a layout has a `Body` parameter, and the layout gets to place other content *around* the `Body`. In a layout, the `Body` parameter is of type `RenderFragment` which is a delegate type that the runtime has special handling for. The good news is that this feature is not limited to layouts. Any component can declare a parameter of type `RenderFragment`. We've also used this feature extensively in `App.razor`. All of the components used to handle routing and authorization are templated components.
+Blazor はこの機能を提供しており、レイアウトも似た機能を提供します。レイアウトには `Body` パラメーターがあり、レイアウトの実装は `Body` の周りで行われます。レイアウトでは `Body` パラメーターは `RenderFragment` 型です。
 
-Let's get started on this new dialog component. Create a new component file named `TemplatedDialog.razor` in the `BlazingComponents` project. Put the following markup inside `TemplatedDialog.razor`:
+どのコンポーネントでも `RenderFragment` をパラメーターで受け取ることができます。`App.razor` はこの機能を使っていて、ルーティングコンポーネントや認証コンポーネントもテンプレートコンポーネントです。
+
+新しく `TemplatedDialog.razor` を `BlazingComponents` プロジェクトに作成して、以下マークアップを追加します:
 
 ```html
 <div class="dialog-container">
@@ -73,20 +73,20 @@ Let's get started on this new dialog component. Create a new component file name
 </div>
 ```
 
-This doesn't do anything yet because we haven't added any parameters. Recall from before the two things we want to accomplish.
+ここでは 2 つのことを実現します。
 
-1. Accept the content of the dialog as a parameter
-2. Render the dialog conditionally if it is supposed to be shown
+1. コンテンツをダイアログのパラメーターとして受けとる
+2. 条件に応じてダイアログの表示/非表示を切り替える
 
-First, add a parameter called `ChildContent` of type `RenderFragment`. The name `ChildContent` is a special parameter name, and is used by convention when a component wants to accept a single content parameter.
+まず `RenderFragment` 型の `ChildContent` を追加します。`ChildContent` は特別な名前で、コンテンツが 1 つだけ渡される場合に利用できます:
 
-```razor
+```csharp
 @code {
     [Parameter] public RenderFragment ChildContent { get; set; }
 }
 ```
 
-Next, update the markup to *render* the `ChildContent` in the middle of the markup. It should look like this:
+つぎに `dialog` で作成した `ChildContent` を指定します:
 
 ```html
 <div class="dialog-container">
@@ -96,9 +96,9 @@ Next, update the markup to *render* the `ChildContent` in the middle of the mark
 </div>
 ```
 
-If this structure looks weird to you, cross-check it with your layout file, which follows a similar pattern. Even though `RenderFragment` is a delegate type, the way to *render* it not by invoking it, it's by placing the value in a normal expression so the runtime may invoke it.
+`@ChildContent` の書き方に違和感がある場合、レイアウトで `@Body` と記述したことを思い出してください。`RenderFragment` は直接実行されることはなく、フレームワークが描画します。
 
-Next, to give this dialog some conditional behavior, let's add a parameter of type `bool` called `Show`. After doing that, it's time to wrap all of the existing content in an `@if (Show) { ... }`. The full file should look like this:
+次に `bool` 型の `Show` プロパティを追加して、`@if (Show) { ... }` シンタックスで表示の制御を行います:
 
 ```html
 @if (Show)
@@ -116,23 +116,23 @@ Next, to give this dialog some conditional behavior, let's add a parameter of ty
 }
 ```
 
-Do build and make sure that everything compiles at this stage. Next we'll get down to using this new component.
+ソリューションをビルドしてエラーが無いことを確認します。
 
-## Adding a reference to the templated library
+## 参照の追加
 
-Before we can use this component in the `BlazingPizza.Client` project, we will need to add a project reference. Do this by adding a project reference from `BlazingPizza.Client` to `BlazingComponents`.
+コンポーネントを `BlazingPizza.Client` で使えるように、`BlazingComponents` をプロジェクト参照追加します。
 
-Once that's done, there's one more minor step. Open the `_Imports.razor` in the topmost directory of `BlazingPizza.Client` and add this line at the end:
+追加後 `_Imports.razor` ファイルに `@using` を追加します:
 
 ```html
 @using BlazingComponents
 ```
 
-Now that the project reference has been added, do a build again to verify that everything still compiles.
+念のため再度ソリューションをビルドしてエラーがないことを確認します。
 
-## Another refactor
+## ConfigurePizzaDialog のリファクタリング
 
-Recall that our `TemplatedDialog` contains a few `div`s. Well, this duplicates some of the structure of `ConfigurePizzaDialog`. Let's clean that up. Open `ConfigurePizzaDialog.razor`; it currently looks like:
+`ConfigurePizzaDialog` のダイアログを `TemplatedDialog` で使うように変えていきます。現在 `ConfigurePizzaDialog` は `div` を複数含んでいます。:
 
 ```html
 <div class="dialog-container">
@@ -151,7 +151,7 @@ Recall that our `TemplatedDialog` contains a few `div`s. Well, this duplicates s
 </div>
 ```
 
-We should remove the outermost two layers of `div` elements since those are now part of the `TemplatedDialog` component. After removing these it should look more like:
+外側 2 つの `div` は `TemplatedDialog` に存在するため、削除します:
 
 ```html
 <div class="dialog-title">
@@ -166,9 +166,9 @@ We should remove the outermost two layers of `div` elements since those are now 
 </div>
 ```
 
-## Using the new dialog
+## 新しいダイアログを使う
 
-We'll use this new templated component from `Index.razor`. Open `Index.razor` and find the block of code that looks like:
+新しいテンプレートコンポーネントを `Index.razor` で使います。`Index.razor` を開いて、以下のマークアップを見つけます。
 
 ```html
 @if (OrderState.ShowingConfigureDialog)
@@ -180,7 +180,7 @@ We'll use this new templated component from `Index.razor`. Open `Index.razor` an
 }
 ```
 
-We are going to remove this and replace it with an invocation of the new component. Replace the block above with code like the following:
+このマークアップを、`TemplatedDialog` に置き換えます。
 
 ```html
 <TemplatedDialog Show="OrderState.ShowingConfigureDialog">
@@ -191,33 +191,36 @@ We are going to remove this and replace it with an invocation of the new compone
 </TemplatedDialog>
 ```
 
-This is wiring up our new `TemplatedDialog` component to show and hide itself based on `OrderState.ShowingConfigureDialog`. Also, we're passing in some content to the `ChildContent` parameter. Since we called the parameter `ChildContent` any content that is placed inside the `<TemplatedDialog> </TemplatedDialog>` will be captured by a `RenderFragment` delegate and passed to `TemplatedDialog`. 
+`TemplatedDialog` コンポーネントの `Show` 属性に渡した `OrderState.ShowingConfigureDialog` で表示/非表示を切り替えます。`ChildContent` は特別な名前のため明示的に指定する必要なく、`<TemplatedDialog> </TemplatedDialog>` の間に渡されたマークアップを `RenderFragment` パラメーターとして扱います。
 
-> Note: A templated component may have multiple `RenderFragment` parameters. What we're showing here is a convenient convention when the caller wants to provide a single `RenderFragment` that represents the *main* content.
+> メモ: 複数の `RenderFragment` を持つテンプレート ダイアログを作成することもできます。ここでは単位のコンテンツを使う場合に、`RenderFragment` を渡す例をしましましたが、後で複数コンテンツのダイアログも作成します。詳細は [ASP.NET Core Blazor テンプレート コンポーネント](https://docs.microsoft.com/ja-jp/aspnet/core/blazor/templated-components?view=aspnetcore-3.1)を参照してください。
 
-At this point it should be possible to run the code and see that the new dialog works correctly. Verify that this is working correctly before moving on to the next step.
+アプリを実行して、これまでと同じ挙動であることを確認します。
 
-## A more advanced templated component
+## より高度なテンプレートコンポーネント
 
-Now that we've done a basic templated dialog, we're going to try something more sophisticated. Recall that the `MyOrders.razor` page shows a list of orders, but it also contains three-state logic (loading, empty list, and showing items). If we could extract that logic into a reusable component, would that be useful? Let's give it a try.
+基本的なテンプレートコンポーネントを作ったので、次はより高度なテンプレートを作ります。
 
-Start by creating a new file `TemplatedList.razor` in the `BlazingComponents` project. We want this list to have a few features:
-1. Async-loading of any type of data
-2. Separate rendering logic for three states - loading, empty list, and showing items
+`MyOrders.razor` ページでは複数の注文が表示できますが、3 つの状態 (ロード中、データがない場合、データがある場合)で表示を切り替えています。これを再利用可能なテンプレート コンポーネントにします。
 
-We can solve async loading by accepting a delegate of type `Func<Task<List<?>>>` - we need to figure out what type should replace **?**. Since we want to support any kind of data, we need to declare this component as a generic type. We can make a generic-typed component using the `@typeparam` directive, so place this at the top of `TemplatedList.razor`.
+`TemplatedList.razor` を `BlazingComponents` に追加します。このテンプレートコンポーネントは以下の機能を持たせます。
+
+1. 非同期でのデータロード
+2. 3 つの状態それぞれの描画ロジック
+
+非同期のデータロードに関しては、デリゲート型 `Func<Task<List<?>>>` を受け取ることで実現できます。**?** にはロードするデータの型を指定します。今回任意の型をサポートするため、ジェネリック型を指定します。ジェネリック型は `@typeparam` ディレクティブを使います。`TemplatedList.razor` の先頭に以下コードを追加します:
 
 ```html
 @typeparam TItem
 ```
 
-Making a generic-typed component works similarly to other generic types in C#, in fact `@typeparam` is just a convenient Razor syntax for a generic .NET type.
+`@typeparam` は便利な Razor シンタックスで C# のジェネリックと同様に機能します。
 
-note: We don't yet have support for type-parameter-constraints. This is something we're looking to add in the future.
+>メモ: 現時点では型パラメーターの制約はサポートされていませんが、将来的にはサポートされる予定です。
 
-Now that we've defined a generic type parameter we can use it in a parameter declaration. Let's add a parameter to accept a delegate we can use to load data, and then load the data in a similar fashion to our other components.
+ジェネリック型のパラメータを指定したので、デリゲートを受け取って処理するコードを追加します:
 
-```html
+```csharp
 @code {
     List<TItem> items;
 
@@ -230,7 +233,7 @@ Now that we've defined a generic type parameter we can use it in a parameter dec
 }
 ```
 
-Since we have the data, we can now add the structure of each of the states we need to handle. Add the following markup to `TemplatedList.razor`:
+データの取得ができたので、画面を描画します:
 
 ```html
 @if (items == null)
@@ -253,17 +256,17 @@ else
 }
 ```
 
-Now, these are our three states of the dialog, and we'd like accept a content parameter for each one so the caller can plug in the desired content. We do this by defining three `RenderFragment` parameters. Since we have multiple we'll just give them their own descriptive names instead of calling them `ChildContent`. However, the content for showing an item needs to take a parameter. We can do this by using `RenderFragment<T>`.
+コンポーネントパラメーターとして 3 つの `RenderFragment` を受け取るため、先ほど使用した `ChildContent` が使えません。よってそれぞれ別の名前を付けます。またジェネリック型のパラメーターを受け取る Item は `RenderFragment<T>` 形式でしています。
 
-Here's an example of the three parameters to add:
+以下のコードを追加します:
 
-```C#
+```csharp
     [Parameter] public RenderFragment Loading{ get; set; }
     [Parameter] public RenderFragment Empty { get; set; }
     [Parameter] public RenderFragment<TItem> Item { get; set; }
 ```
 
-Now that we have some `RenderFragment` parameters, we can start using them. Update the markup we created earlier to plug in the correct parameter in each place.
+受け取った `RenderFragment` を描画します:
 
 ```html
 @if (items == null)
@@ -287,30 +290,16 @@ else
 }
 ```
 
-The `Item` accepts a parameter, and the way to deal with this is just to invoke the function. The result of invoking a `RenderFragment<T>` is another `RenderFragment` which can be rendered directly.
+`Item` はパラメーターを関数の引数のように受け取れます。`RenderFragment<T>` は他の `RenderFragment` 同様に処理されます。
 
-The new component should compile at this point, but there's still one thing we want to do. We want to be able to style the `<div class="list-group">` with another class, since that's what `MyOrders.razor` is doing. Adding small extensibiliy points to plug in additional css classes can go a long way for reusability.
+最後に、`MyOrders.razor` では `<div class="list-group">` で `list-group` 以外に追加のクラスを指定し、 CSS でスタイリングしています。それに対応するため `string` 型のパラメーターを追加します:
 
-Let's add another `string` parameter, and finally the functions block of `TemplatedList.razor` should look like:
-
-```html
-@code {
-    List<TItem> items;
-
-    [Parameter] public Func<Task<List<TItem>>> Loader { get; set; }
-    [Parameter] public RenderFragment Loading { get; set; }
-    [Parameter] public RenderFragment Empty { get; set; }
-    [Parameter] public RenderFragment<TItem> Item { get; set; }
+```csharp
     [Parameter] public string ListGroupClass { get; set; }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        items = await Loader();
-    }
 }
 ```
 
-Lastly update the `<div class="list-group">` to contain `<div class="list-group @ListGroupClass">`. The complete file of `TemplatedList.razor` should now look like:
+`<div class="list-group">` マークアップを `<div class="list-group @ListGroupClass">` に更新します。最終的に `TemplatedList.razor` は以下のようになります:
 
 ```html
 @typeparam TItem
@@ -351,13 +340,13 @@ else
 }
 ```
 
-## Using TemplatedList
+## TemplatedList の利用
 
-To use the new `TemplatedList` component, we're going to edit `MyOrders.razor`.
+早速追加した `TemplatedList` を `MyOrders.razor` で使います。
 
-First, we need to create a delegate that we can pass to the `TemplatedList` that will load order data. We can do this by keeping the line of code that's in `MyOrders.OnParametersSetAsync` and changing the method signature. The `@code` block should look something like:
+まず `TemplatedList` に対してデータを非同期でロードするためのメソッドを `MyOrders.OnParametersSetAsync` を変更して作成します:
 
-```html
+```csharp
 @code {
     Task<List<OrderWithStatus>> LoadOrders()
     {
@@ -366,9 +355,7 @@ First, we need to create a delegate that we can pass to the `TemplatedList` that
 }
 ```
 
-This matches the signature expected by the `Loader` parameter of `TemplatedList`, it's a `Func<Task<List<?>>>` where the **?** is replaced with `OrderWithStatus` so we are on the right track.
-
-If you use the `TemplatedList` component now like so:
+これでシグネチャーが `Loader` の期待する `Func<Task<List<?>>>` となり **?** は `OrderWithStatus` 型指定されています。次に `TemplatedList` を使うように変更します:
 
 ```html
 <div class="main">
@@ -377,9 +364,7 @@ If you use the `TemplatedList` component now like so:
 </div>
 ```
 
-The compiler will complain about not knowing the generic type of `TemplatedList`. The compiler is smart enough to perform type inference like normal C# but we haven't given it enough information to work with.
-
-Adding the `Loader` attribute should fix the issue.
+コンパイラーは `TemplatedList` がジェネリック型のパラメーターを受け取ることを知っているため、エラーを表示します。そこで引数を `Loader` に指定します:
 
 ```html
 <div class="main">
@@ -388,7 +373,7 @@ Adding the `Loader` attribute should fix the issue.
 </div>
 ```
 
-> Note: A generic-typed component can have its type-parameters manually specified as well by setting the attribute with a matching name to the type parameter - in this case it's called `TItem`. There are some cases where this is necessary so it's worth knowing.
+> メモ: ジェネリック型パラメーターを受け取るコンポーネントには、以下のようにパラメーターのタイプ(ここでは `TItem`) に直接型を指定することもできます。
 
 ```html
 <div class="main">
@@ -397,13 +382,10 @@ Adding the `Loader` attribute should fix the issue.
 </div>
 ```
 
-We don't need to do this right now because the type can be inferred from `Loader`.
+ここでは `Loader` 経由で型情報が渡る為必要ありません。
 
------
 
-Next, we need to think about how to pass multiple content (`RenderFragment`) parameters to a component. We've learned using `TemplatedDialog` that a single `[Parameter] RenderFragment ChildContent` can be set by nesting content inside the component. However this is just a convenient syntax for the most simple case. When you want to pass multiple content parameters, you can do this by nesting elements inside the component that match the parameter names.
-
-For our `TemplatedList` here's an example that sets each parameter to some dummy content:
+次に複数の `RenderFragment` パラメーターを `TemplatedDialog` に渡します。単一のパラメーターの場合 `[Parameter] RenderFragment ChildContent` が利用できましたが、ここでは明示的に渡します:
 
 ```html
 <div class="main">
@@ -419,7 +401,7 @@ For our `TemplatedList` here's an example that sets each parameter to some dummy
 </div>
 ```
 
-The `Item` parameter is a `RenderFragment<T>` - which accepts a parameter. By default this parameter is called `context`. If we type inside of `<Item>  </Item>` then it should be possible to see that `@context` is bound to a variable of type `OrderStatus`. We can rename the parameter by using the `Context` attribute:
+ここで `Item` パラメータは `RenderFragment<T>` 型であり、既定でパラメーターは `context` と呼ばれますが、明示的に`Context` 属性に値を渡すことができます:
 
 ```html
 <div class="main">
@@ -435,7 +417,7 @@ The `Item` parameter is a `RenderFragment<T>` - which accepts a parameter. By de
 </div>
 ```
 
-Now we want to include all of the existing content from `MyOrders.razor`, so putting it all together should look more like the following:
+最後に既存の `MyOrders.razor` よりコンテンツを取ってきて渡します:
 
 ```html
 <div class="main">
@@ -466,20 +448,17 @@ Now we want to include all of the existing content from `MyOrders.razor`, so put
 </div>
 ```
 
-Notice that we're also setting the `ListGroupClass` parameter to add the additional styling that was present in the original `MyOrders.razor`. 
+`TemplatedList` コンポーネントでは `Loader` 以外に `ListGroupClass` 属性に `MyOrders.razor` を渡して、元々と同じ状態を作っています。
 
-There were a number of steps and new features to introduce here. Run this and make sure that it works correctly now that we're using the templated list.
+実際に機能するか確認するには、以下の手順で操作します。
 
-To prove that the list is really working correctly we can try the following: 
-1. Delete the `pizza.db` from the `Blazor.Server` project to test the case where there are no orders
-2. Add an `await Task.Delay(3000);` to `LoadOrders` (also marking that method as `async`) to test the case where we're still loading
+1. `pizza.db` ファイルを `Blazor.Server` プロジェクトより削除。
+2. `LoadOrders` メソッドを `async` に変更して、`await Task.Delay(3000);` 追加。これによりロード中の画面が確認可能。
 
-## Summary
+このセッションでは以下のことを学びました。
 
-So what have we seen in this section?
+1. *content* をパラメーターをとして受け取るコンポーネントを作れる
+2. テンプレートコンポーネントを使うとダイアログやデータロードなどを抽象化できる
+3. コンポーネントはジェネリック型を受け取れ、より汎用性を上げられる
 
-1. It's possible to write components that accept *content* as a parameter - even multiple content parameters
-2. Templated components can be used to abstract things, like showing a dialog, or async loading of data
-3. Components can be generic types which makes them more reusable
-
-Next up - [Progressive web app](09-progressive-web-app.md)
+次のセッションは - [プログレッシブ Web アプリ(PWA)](09-progressive-web-app.md) です。

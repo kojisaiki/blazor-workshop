@@ -1,14 +1,14 @@
-# Checkout with Validation
+# チェックアウトとデータ検証
 
-If you take a look at the `Order` class in `BlazingPizza.Shared`, you might notice that it holds a `DeliveryAddress` property of type `Address`. However, nothing in the pizza ordering flow yet populates this data, so all your orders just have a blank delivery address. 
+`BlazingPizza.Shared` プロジェクトの `Order` クラスには `Address` 型 `DeliveryAddress` プロパティがあります。現在の実装ではアドレスを指定する機能がないため、全ての注文は住所が無い状態で作成されています。
 
-It's time to fix this by adding a "checkout" screen that requires customers to enter a valid address.
+このセッションでは住所を入力するための "チェックアウト" 画面の実装と住所データの検証を行います。
 
-## Inserting checkout into the flow
+## チェックアウト画面の実装
 
-Start by adding a new page component, `Checkout.razor`, with a `@page` directive matching the URL `/checkout`. For the initial markup, let's display the details of the order using your `OrderReview` component:
+まずは `Checkout.razor` を追加して、`@page` ディレクティブに `/checkout` を指定します。始めに `OrderReview` コンポーネントを再利用して注文の詳細を表示します:
 
-```razor
+```html
 <div class="main">
     <div class="checkout-cols">
         <div class="checkout-order-details">
@@ -23,9 +23,9 @@ Start by adding a new page component, `Checkout.razor`, with a `@page` directive
 </div>
 ```
 
-To implement `PlaceOrder`, copy the method with that name from `Index.razor` into `Checkout.razor`:
+`PlaceOrder` を `Index.razor` から `Checkout.razor` に移します:
 
-```razor
+```csharp
 @code {
     async Task PlaceOrder()
     {
@@ -36,37 +36,36 @@ To implement `PlaceOrder`, copy the method with that name from `Index.razor` int
 }
 ```
 
-As usual, you'll need to `@inject` values for `OrderState`, `HttpClient`, and `NavigationManager` so that it can compile, just like you did in `Index.razor`.
+これまで通り、`OrderState`、`HttpClient` および `NavigationManager` を使うために、`@inject` ディレクティブも追加してください。
 
-Next, let's bring customers here when they try to submit orders. Back in `Index.razor`, make sure you've deleted the `PlaceOrder` method, and then change the order submission button into a regular HTML link to the `/checkout` URL, i.e.:
+次に注文した際に、チェックアウト画面に遷移させます。`Index.razor` で `PlaceOrder` メソッドを消したことを確認してから、注文ボタンをアンカータグに書き換え、リンク先を `/checkout` にします:
 
-```razor
+```html
 <a href="checkout" class="@(Order.Pizzas.Count == 0 ? "btn btn-warning disabled" : "btn btn-warning")">
     Order >
 </a>
 ```
 
-Note that we removed the `disabled` attribute, since HTML links do not support it, and added appropriate styling instead.
+アンカータグには `disabled` 属性が無いため、代わりに CSS で制御しています。
 
-Now, when you run the app, you should be able to reach the checkout page by clicking the *Order* button, and from there you can click *Place order* to confirm it.
+アプリを実行して注文を行うと、チェックアウトページが表示されるはずです。
 
 ![Confirm order](https://user-images.githubusercontent.com/1874516/77242251-d2530780-6bb9-11ea-8535-1c41decf3fcc.png)
 
-## Capturing the delivery address
+## 住所の取得
 
-We've now got a good place to put some UI for entering a delivery address. As usual, let's factor this out into a reusable component. You never know when you're going to be asking for addresses in other places.
+チェックアウト画面はユーザーに住所を入れてもらうには良い場所です。アドレス入力は再利用の機会もありそうなので、再利用可能なコンポーネントとして実装します。
+`BlazingPizza.Client` プロジェクトの `Shared` フォルダーに `AddressEditor.razor` を追加します。`Address` オブジェクトの編集ができるよう、パラメーターとして定義します:
 
-Create a new component in the `BlazingPizza.Client` project's `Shared` folder called `AddressEditor.razor`. It's going to be a general way to edit `Address` instances, so have it receive a parameter of this type:
-
-```razor
+```csharp
 @code {
     [Parameter] public Address Address { get; set; }
 }
 ```
 
-The markup here is going to be a bit tedious, so you probably want to copy and paste this. We'll need input elements for each of the properties on an `Address`:
+マークアップでは `Address` クラスの各フィールドに対応するインプットを作成します:
 
-```razor
+```html
 <div class="form-field">
     <label>Name:</label>
     <div>
@@ -114,9 +113,9 @@ The markup here is going to be a bit tedious, so you probably want to copy and p
 }
 ```
 
-Finally, you can actually use your `AddressEditor` inside the `Checkout.razor` component:
+最後に `AddressEditor` コンポーネントを `Checkout.razor` に定義します:
 
-```razor
+```html
 <div class="checkout-cols">
     <div class="checkout-order-details">
         ... leave this div unchanged ...
@@ -129,24 +128,24 @@ Finally, you can actually use your `AddressEditor` inside the `Checkout.razor` c
 </div>
 ```
 
-Your checkout screen now asks for a delivery address:
+これでチェックアウト画面で住所の入力ができるようになりました。
 
 ![Address editor](https://user-images.githubusercontent.com/1874516/77242320-79d03a00-6bba-11ea-9e40-4bf747d4dcdc.png)
 
-If you submit an order now, any address data that you entered will actually be saved in the database with the order, because it's all part of the `Order` object that gets serialized and sent to the server.
+注文を保存すると、チェックアウト画面で入力した住所は `Order` オブジェクトの一部としてシリアライズされ、バックエンドで保存されます。これはチェックアウト画面に渡した `Address` オブジェクトが `OrderState.Order.DeliveryAddress` のためです。
 
-If you're really keen to verify the data gets saved, consider downloading a tool such as [DB Browser for SQLite](https://sqlitebrowser.org/) to inspect the contents of your `pizza.db` file. But you don't strictly need to do this.
+もしデータベースの中身を直接見たい場合は、[DB Browser for SQLite](https://sqlitebrowser.org/) などの SQLite のデータベースを開けるツールを使い、 `pizza.db` ファイルを見てください。
 
-Alternatively, set a breakpoint inside `BlazingPizza.Server`'s `OrderController.PlaceOrder` method, and use the debugger to inspect the incoming `Order` object. Here you should be able to see the backend server receive the address data you typed in.
+もしくは、`BlazingPizza.Server` プロジェクトの `OrderController.PlaceOrder` メソッドにブレークポイントを置き、デバッグしてもデータは確認できます。
 
-## Adding server-side validation
+## サーバーサイドでのデータ検証
 
-As yet, customers can still leave the "delivery address" fields blank and merrily order a pizza to be delivered nowhere in particular. When it comes to validation, it's normal to implement rules both on the server and on the client:
+まだ住所データは一切検証していないため、値がブランクのままでも保存が可能です。検証をアプリケーションに追加する場合、通常はサーバーサイド/クライアントサイドの両方に実装します。
 
- * Client-side validation is a courtesy to your users. It can provide instant feedback while they are editing a form. However, it can easily be bypassed by anyone with a basic knowledge of the browser dev tools.
- * Server-side validation is where the real enforcement is.
+ * クライアントサイドの検証は即座に画面に出せるため、UX が向上します。しかし簡単にバイパスする事もできるため、データの保証にはなりません。
+ * サーバーサイドの検証は強制力があります。
 
-As such it's usually best to start by implementing server-side validation, so you know your app is robust no matter what happens client-side. If you go and look at `OrdersController.cs` in the `BlazingPizza.Server` project, you'll see that this API endpoint is decorated with the `[ApiController]` attribute:
+このため、クライアント側で何があっても検証が行えるように、サーバーサイドから実装することが多いです。`BlazingPizza.Server` プロジェクトの `OrdersController.cs` を確認すると、`[ApiController]` 属性が設定されています:
 
 ```csharp
 [Route("orders")]
@@ -157,9 +156,9 @@ public class OrdersController : Controller
 }
 ```
 
-`[ApiController]` adds various server-side conventions, including enforcement of `DataAnnotations` validation rules. So all we need to do is put some `DataAnnotations` validation rules onto the model classes.
+`[ApiController]` 属性を指定することで様々な機能が利用できます。データの検証もその 1 つで、`DataAnnotations` をモデルに指定するだけで検証が機能します。詳細は[ASP.NET Core MVC および Razor Pages でのモデルの検証](https://docs.microsoft.com/ja-jp/aspnet/core/mvc/models/validation?view=aspnetcore-3.1) を参照してください。
 
-Open `Address.cs` from the `BlazingPizza.Shared` project, and put a `[Required]` attribute onto each of the properties except for `Id` (which is autogenerated, because it's the primary key) and `Line2`, since not all addresses need a second line. You can also place some `[MaxLength]` attributes if you wish, or any other `DataAnnotations` rules:
+`BlazingPizza.Shared` プロジェクトの `Address.cs` クラスを開き、`[Required]` 属性を各プロパティに指定します。尚、自動生成される `Id` と必須入力にしない `Line2` には指定しないでください。他には `[MaxLength]` 属性でデータの最大長を設定することもできます:
 
 
 ```csharp
@@ -192,23 +191,23 @@ namespace BlazingPizza
 }
 ```
 
-Now, recompile and run your application, and you should be able to observe the validation rules being enforced on the server. If you try to submit an order with a blank delivery address, then the server will reject the request and you'll see an HTTP 400 ("Bad Request") error in the browser's *Network* tab:
+アプリを再起動して注文を試してください。チェックアウト画面で住所をブランクのまま登録すると、サーバーサイドで検証が失敗して先に進まなくなります。画面にエラーが出ないため分かりずらいですが、ブラウザの開発者ツールを開き、ネットワークタブを確認してください。HTTP 400 ("Bad Request") エラーが確認できます。
 
 ![Server validation](https://user-images.githubusercontent.com/1874516/77242384-067af800-6bbb-11ea-8dd0-74f457d15afd.png)
 
-... whereas if you fill out the address fields fully, the server will allow you to place the order. Check that both of these cases behave as expected.
+住所を入力すると、これまで通り注文が作成できます。
 
-## Adding client-side validation
+## クライアントサイドでのデータ検証
 
-Blazor has a comprehensive system for data entry forms and validation. We'll now use this to apply the same `DataAnnotations` rules on the client that are already being enforced on the server.
+Blazor はフォームデータの検証機能を提供します。サーバーサイドで利用している `DataAnnotations` ルールをクライアントサイドでも利用していきます。
 
-The way Blazor's forms and validation system works is based around something called an `EditContext`. An `EditContext` tracks the state of an editing process, so it knows which fields have been modified, what data has been entered, and whether or not the fields are valid. Various built-in UI components hook into the `EditContext` both to read its state (e.g., display validation messages) and to write to its state (e.g., to populate it with the data entered by the user).
+Blazor のフォームデータ検証は `EditContext` を使って実行されます。`EditContext` は編集中のデータを追跡しているため、どのフィールドが編集されたか、どんな値が入力されたか、またフィールドの値に問題がないかなど確認できます。様々なビルトインコンポーネントが `EditContext` を連動し、検証エラーのメッセージを表示したり、ユーザーが入力したデータを表示したり出来ます。
 
-### Using EditForm
+### EditForm の利用
 
-One of the most important built-in UI components for data entry is the `EditForm`. This renders as an HTML `<form>` tag, but also sets up an `EditContext` to track what's going on inside the form. To use this, go to your `Checkout.razor` component, and wrap an `EditForm` around the whole of the contents of the `main` div:
+`EditForm` はビルトインコンポーネントで、フォームコントロールとして機能します。コンパイルすると HTML の `<form>` タグを出力し、`EditContext` と紐づけます。`Checkout.razor` コンポーネントで `main` div 内で `EditForm` を指定します:
 
-```razor
+```html
 <div class="main">
     <EditForm Model="OrderState.Order.DeliveryAddress">
         <div class="checkout-cols">
@@ -222,42 +221,42 @@ One of the most important built-in UI components for data entry is the `EditForm
 </div>
 ```
 
-You can have multiple `EditForm` components at once, but they can't overlap (because HTML's `<form>` elements can't overlap). By specifying a `Model`, we're telling the internal `EditContext` which object it should validate when the form is submitted (in this case, the delivery address).
+尚、コンポーネント内で複数の `EditForm` を利用できますが、入れ子には出来ません。これは HTML の `<form>` が入れ子にできないためです。
 
-Let's start by displaying validation messages in a very basic (and not very attractive) way. Inside the `EditForm`, right at the bottom, add the following two components:
+`Model` 属性に `EditContext` でトラックするものを指定します。ここでは `OrderState.Order.DeliveryAddress` を指定しているため、`Address` クラスの定義を使って追跡されます。
 
-```razor
+あまり見た目はよくありませんが、検証結果を基本的な機能を使って表示します。`EditForm` 内の一番下に以下のコンポーネントを追加します:
+
+```html
 <DataAnnotationsValidator />
 <ValidationSummary />
 ```
 
-The `DataAnnotationsValidator` hooks into events on the `EditContext` and executes `DataAnnotations` rules. If you wanted to use a different validation system other than `DataAnnotations`, you'd swap `DataAnnotationsValidator` for something else.
+`DataAnnotationsValidator` コンポーネントは `EditContext` と連携して `DataAnnotations` のルールを実行します。`DataAnnotations` の機能が十分でない場合は、`DataAnnotationsValidator` を別のものに変更してください。
 
-The `ValidationSummary` simply renders an HTML `<ul>` containing any validation messages from the `EditContext`.
+`ValidationSummary` コンポーネントは `EditContext` の検証メッセージを HTML の `<ul>` としてリスト表示します。
 
-### Handling submission
+### フォーム登録のハンドリング
 
-If you ran your application now, you could still submit a blank form (and the server would still respond with an HTTP 400 error). That's because your `<button>` isn't actually a `submit` button. Modify the `button` by adding `type="submit"` and **removing** its `@onclick` attribute entirely.
+この状態では、住所がブランクのままでも登録ボタンがクリックできます。これは `<button>` が明示的に `submit` ボタンであると指定されていないためです。`button` に `type="submit"` を追加して、`@onclick` 属性を削除します。
 
-Next, instead of triggering `PlaceOrder` directly from the button, you need to trigger it from the `EditForm`. Add the following `OnValidSubmit` attribute onto the `EditForm`:
+次に `PlaceOrder` をボタンから実行する代わりに、`EditForm` から実行するように変更します。`OnValidSubmit` 属性を `EditForm` に追加してください:
 
-```razor
+```html
 <EditForm Model="OrderState.Order.DeliveryAddress" OnValidSubmit="PlaceOrder">
 ```
 
-As you can probably guess, the `<button>` no longer triggers `PlaceOrder` directly. Instead, the button just asks the form to be submitted. And then the form decides whether or not it's valid, and if it is, *then* it will call `PlaceOrder`.
-
-Try it out: you should no longer be able to submit an invalid form, and you'll see validation messages (albeit unattractive ones).
+これで `<button>` は `PlaceOrder` メソッドを直接実行せず、フォームの登録のみを行います。その後 `EditForm` がデータの検証を行った後、`PlaceOrder` を実行するか判定します。アプリを実行して動作を確認してみてください。
 
 ![Validation summary](https://user-images.githubusercontent.com/1874516/77242430-9d47b480-6bbb-11ea-96ef-8865468375fb.png)
 
-### Using ValidationMessage
+### ValidationMessage でメッセージをカスタマイズ
 
-Obviously it's pretty disgusting to display all the validation messages so far away from the text boxes. Let's move them to better places.
+フォーム下部にまとめてエラーを表示しても UX は向上しないため、それぞれのインプットの近くにメッセージを移します。
 
-Start by removing the `<ValidationSummary>` component entirely. Then, switch over to `AddressEditor.razor`, and add separate `<ValidationMessage>` components next to each of the form fields. For example,
+まず `<ValidationSummary>` コンポーネントを削除します。そして `AddressEditor.razor` で `<ValidationMessage>` コンポーネントをそれぞれのフィールドに追加します。
 
-```razor
+```html
 <div class="form-field">
     <label>Name:</label>
     <div>
@@ -267,31 +266,27 @@ Start by removing the `<ValidationSummary>` component entirely. Then, switch ove
 </div>
 ```
 
-Do the equivalent for all of the form fields.
+全てのフィールドで同じ作業を繰り返します。尚、`@(() => Address.Name)` のラムダ式で、どのプロパティを検証するかを指定しています。
 
-In case you're wondering, the syntax `@(() => Address.Name)` is a *lambda expression*, and we use this syntax as a way of describing which property to read the metadata from, without actually evaluating the property's value.
-
-Now things look a lot better:
+アプリを起動して、実際の動作を確認します。だいぶ分かりやすくなりました。
 
 ![Validation messages](https://user-images.githubusercontent.com/1874516/77242484-03ccd280-6bbc-11ea-8dd1-5d723b043ee2.png)
 
-If you want, you can improve the readability of the messages by specifying custom ones. For example, instead of displaying *The City field is required*, you could go to `Address.cs` and do this:
+メッセージの変更も簡単です。例えば *The City field is required* の表示を変更する場合、`Address.cs` を書き換えます:
 
 ```csharp
 [Required(ErrorMessage = "How do you expect to receive the pizza if we don't even know what city you're in?"), MaxLength(50)]
 public string City { get; set; }
 ```
 
-### Better validation UX using the built-in input components
+### ビルトインコンポーネントの検証機能で UX を向上する
 
-The user experience is still not great, because once the validation messages are displayed, they remain on the screen until you click *Place order* again, even if you have edited the field values. Try it out and see how it feels pretty basic!
+検証結果の表示場所は良くなりましたが、エラーが出た場合、ユーザーが入力を変更しても、すぐにエラーは消えません。この問題を解消する為に HTML の input エレメントを Blazor のビルトインコンポーネントに差し替えます。 これらのコンポーネントはより柔軟に `EditContext` を連携します。
 
-To improve on this, you can replace the low-level HTML input elements with Blazor's built-in input components. They know how to hook more deeply into the `EditContext`:
+* 値が編集された場合、すぐに `EditContext` に通知して検証結果を変更できる。
+* `EditContext` から検証結果を受け取れるため、値が有効か無効かを判断して画面を変更できる。
 
-* When they are edited, they notify the `EditContext` immediately so it can refresh validation status.
-* They also receive notifications about validity from the `EditContext`, so they can highlight themselves as either valid or invalid as the user edits them.
-
-Go back to `AddressEditor.razor` once again. Replace each of the `<input>` elements with a corresponding `<InputText>`. For example,
+再度 `AddressEditor.razor` に戻って、`<input>` エレメントを `<InputText>` に変更します:
 
 ```html
 <div class="form-field">
@@ -303,14 +298,12 @@ Go back to `AddressEditor.razor` once again. Replace each of the `<input>` eleme
 </div>
 ```
 
-Do this for all the properties. The behavior is now much better! As well as having the validation messages update individually for each form field as you change focus, you'll get a neat "valid" or "invalid" highlight around each one:
+同じ変更を他のプロパティにも行います。これでユーザーが入力を変更すると即座に UI が変更されるようになりました。また CSS で検証結果が分かるようにハイライトを変えています。
 
 ![Input components](https://user-images.githubusercontent.com/1874516/77242542-ba30b780-6bbc-11ea-8018-be022d6cac0b.png)
 
-The green/red styling is achieved by applying CSS classes, so you can change the appearance of these effects or remove them entirely if you wish.
+ハイライトの方法を変えたい場合は CSS を変更してみてください。
 
-`InputText` isn't the only built-in input component, though it is the only one we need in this case. Others include `InputCheckbox`, `InputDate`, `InputSelect`, and more.
+`InputText` 以外にも、`InputCheckbox`、`InputDate`、`InputSelect` などのビルトインコンポーネントが提供されています。詳細は前述した [ASP.NET Core Blazor のフォームと検証](https://docs.microsoft.com/ja-jp/aspnet/core/blazor/forms-validation?view=aspnetcore-3.1) を参照してください。
 
-## Up next
-
-Up next we'll add [authentication and authorization](https://github.com/dotnet-presentations/blazor-workshop/blob/master/docs/06-authentication-and-authorization.md)
+次のセッションは [認証と認可](06-authentication-and-authorization.md) です。

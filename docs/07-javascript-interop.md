@@ -1,12 +1,12 @@
 # JavaScript interop
 
-Users of the pizza store can now track the status of their orders in real time. In this session we'll use JavaScript interop to add a real-time map to the order status page that answers the age old question, "Where's my pizza?!?".
+このセッションでは *JavaScript interop* を使って、ユーザーがリアルタイムにピザの配送状況をマップで確認できるようにします。
 
-## The Map component
+## Map コンポーネント
 
-Included in the ComponentsLibrary project is a prebuilt `Map` component for displaying the location of a set of markers and animating their movements over time. We'll use this component to show the location of the user's pizza orders as they are being delivered, but first let's look at how the `Map` component is implemented.
+ComponentsLibrary プロジェクトの `Map` コンポーネントは、現在の位置をリアルタイムにマップに表示するコンポーネントです。アプリでもこのコンポーネントを使って配達状況を表示しますが、まずは `Map` コンポーネントを見ていきます。
 
-Open *Map.razor* and take a look at the code:
+`Map.razor` を開いてコードを確認します:
 
 ```csharp
 @using Microsoft.JSInterop
@@ -30,20 +30,17 @@ Open *Map.razor* and take a look at the code:
 }
 ```
 
-The `Map` component uses dependency injection to get an `IJSRuntime` instance. This service can be used to make JavaScript calls to browser APIs or existing JavaScript libraries by calling the `InvokeVoidAsync` or `InvokeAsync<TResult>` method. The first parameter to this method specifies the path to the JavaScript function to call relative to the root `window` object. The remaining parameters are arguments to pass to the JavaScript function. The arguments are serialized to JSON so they can be handled in JavaScript.
+`Map` コンポーネントは `@inject` ディレクティブで `IJSRuntime` インスタンスを受け取るように指定しています。このサービスはブラウザー API や既存の JavaScript ライブラリをの関数を `InvokeVoidAsync` と `InvokeAsync<TResult>` メソッドで呼び出せます。第 1 パラメーターに JavaScript のモジュールのパスと関数名を指定します。パスはルートの `window` オブジェクトからのパスとなります。残りのパラメーターは呼び出す関数に引き渡すパラメータとなります。パラメーターは JSON 形式でシリアライズされます。
 
-The `Map` component first renders a `div` with a unique ID for the map and then calls the `deliveryMap.showOrUpdate` function to display the map in the specified element with the specified markers pass to the `Map` component. This is done in the `OnAfterRenderAsync` component lifecycle event to ensure that the component is done rendering its markup. The `deliveryMap.showOrUpdate` function is defined in the *wwwroot/deliveryMap.js* file, which then uses [leaflet.js](http://leafletjs.com) and [OpenStreetMap](https://www.openstreetmap.org/) to display the map. The details of how this code works isn't really important - the critical point is that it's possible to call any JavaScript function this way.
+`Map` コンポーネントはユニークな ID をもつ　`div` を描画し、`deliveryMap.showOrUpdate` 関数にその ID と位置を示す `Markers` を渡しています。処理は `OnAfterRenderAsync` コンポーネントライフサイクルイベントで実行されるため、`div` の描画が終わってから関数が実行される事が保障されます。`deliveryMap.showOrUpdate` 関数は `wwwroot/deliveryMap.js` ファイルに定義されていて、[leaflet.js](http://leafletjs.com) と [OpenStreetMap](https://www.openstreetmap.org/) を使い、マップを描画します。このコードの詳細より、どのように JavaScript の関数が呼び出されるかが重要であるため、この実装パターンを覚えて置いてください。
 
-How do these files make their way to the Blazor app? For a Blazor library project (using `Sdk="Microsoft.NET.Sdk.Razor"`) any files in the `wwwroot/` folder will be bundled with the library. The server project will automatically serve these files using the static files middleware.
+`Sdk="Microsoft.NET.Sdk.Razor"` を使う Blazor ライブラリプロジェクトは、コンパイル時に`wwwroot/` フォルダ配下にあるファイルがバンドルされます。バックエンドのサーバープロジェクトは、これらのファイルを静的ファイルとしてクライアントに配布します。
 
-The final link is for the page hosting the Blazor client app to include the desired files (in our case `.js` and `.css`). The `index.html` includes these files using relative URIs like `_content/BlazingPizza.ComponentsLibrary/localStorage.js`. This is the general pattern for references files bundled with a Blazor class library - `_content/<library name>/<file path>`.
+最終的に `.js` や `.css` ファイルへのリンクは `index.html` に含まれます。例えば既に紹介した `localStorage` の場合、`_content/BlazingPizza.ComponentsLibrary/localStorage.js` という相対パスが指定されます。このように Blazor ライブラリが持つファイルへのパスは `_content/<library name>/<file path>` となります。
 
----
+クライアントプロジェクトのコンポーネントで `Map` をタイプした場合、エディターでコンポーネントとして認識されません。これは `@using` を使った名前空間の指定が存在しないからです。`Map` は `BlazingPizza.ComponentsLibrary.Map` 名前空間を使います。これを各コンポーネントに追加しても動作しますが、複数のコンポーネントで利用する場合はプロジェクトのルートにある `_Imports.razor` に指定できます。以下のようにライブラリの名前空間を追加します:
 
-If you start typing in `Map`, you'll notice that the editor doesn't offer completion for it. This is because the binding between elements and components are governed by C#'s namespace binding rules. The `Map` component is defined in the `BlazingPizza.ComponentsLibrary.Map` namespace, which we don't have an `@using` for.
-
-Add an `@using` for this namespace to the root `_Imports.razor` to bring this component into scope:
-```razor
+```html
 @using System.Net.Http
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
@@ -56,7 +53,7 @@ Add an `@using` for this namespace to the root `_Imports.razor` to bring this co
 @using BlazingPizza.ComponentsLibrary.Map
 ```
 
-Add the `Map` component to the `OrderDetails` page by adding the following just below the `track-order-details` `div`:
+その後 `OrderDetails` コンポーネントで `Map` を使うと、エディターで認識されます。`track-order-details` の `div` 直下に以下マークアップを追加します:
 
 ```html
 <div class="track-order-map">
@@ -64,19 +61,19 @@ Add the `Map` component to the `OrderDetails` page by adding the following just 
 </div>
 ```
 
-*The reason why we haven't needed to add `@using`s for our components before now is that our root `_Imports.razor` already contains an `@using BlazingPizza.Shared` which matches the reusable components we have written.*
+実はこれまで @using を明示的に指定せずに認識されていたコンポーネントは、`_Imports.razor` で `@using` が指定されているからでした。
 
-When the `OrderDetails` component polls for order status updates, an update set of markers is returned with the latest location of the pizzas, which then gets reflected on the map.
+`OrderDetails` コンポーネントが注文のステータスをポーリングで取得する度に、配送の最新の位置情報が取得でき、その結果、地図上のマーカーがリアルタイムに移動します。
 
 ![Real-time pizza map](https://user-images.githubusercontent.com/1874516/51807322-6018b880-227d-11e9-89e5-ef75f03466b9.gif)
 
-## Add a confirm prompt for deleting pizzas
+## 確認ダイアログの実装
 
-The JavaScript interop code for the `Map` component was provided for you. Next you'll add some JavaScript interop code of your own.
+`Map` コンポーネントでは初めから *JavaScript interop* が構成されていましたが、次は新しくコンポーネントを作ってみます。
 
-It would be a shame if users accidentally deleted pizzas from their order (and ended up not buying them!). Let's add a confirm prompt when the user tries to delete a pizza. We'll show the confirm prompt using JavaScript interop.
+もしユーザーが間違えてピザを注文カゴから消してしまった場合、そのまま購入してくれないかもしれません。そこで削除時に確認ダイアログを出せるようにします。
 
-Add a static `JSRuntimeExtensions` class to the Client project with a `Confirm` extension method off of `IJSRuntime`. Implement the `Confirm` method to call the built-in JavaScript `confirm` function.
+クライアントプロジェクトに `JSRuntimeExtensions.cs` ファイルを追加し、静的クラスを作ります。`IJSRuntime` クラスに拡張メソッドとして `Confirm` メソッドを追加します。メソッド内では、 JavaScript ビルトイン関数である `confirm` 関数を呼び出します。
 
 ```csharp
 public static class JSRuntimeExtensions
@@ -88,9 +85,9 @@ public static class JSRuntimeExtensions
 }
 ```
 
-Inject the `IJSRuntime` service into the `Index` component so that it can be used there to make JavaScript interop calls.
+`Index` コンポーネントでも *JavaScript interop* を使えるよう、`IJSRuntime` サービスをインジェクトします:
 
-```razor
+```html
 @page "/"
 @inject HttpClient HttpClient
 @inject OrderState OrderState
@@ -98,7 +95,7 @@ Inject the `IJSRuntime` service into the `Index` component so that it can be use
 @inject IJSRuntime JS
 ```
 
-Add an async `RemovePizza` method to the `Index` component that calls the `Confirm` method to verify if the user really wants to remove the pizza from the order.
+`RemovePizza` メソッドで先ほど作成した `Confirm` メソッドの呼び出しを追加し、ピザを注文から削除した際に、確認画面が出るようにします。また確認の結果が true であった場合、`OrderState` の `RemoveConfiguredPizza` メソッドを実行します:
 
 ```csharp
 async Task RemovePizza(Pizza configuredPizza)
@@ -110,7 +107,7 @@ async Task RemovePizza(Pizza configuredPizza)
 }
 ```
 
-In the `Index` component update the event handler for the `ConfiguredPizzaItems` to call the new `RemovePizza` method. 
+次に `index` コンポーネントの `ConfiguredPizzaItems` で現在 `RemoveConfiguredPizza` メソッドを実行している箇所を、定義した `RemovePizza` メソッドを実行するように変更します: 
 
 ```csharp
 @foreach (var configuredPizza in OrderState.Order.Pizzas)
@@ -119,10 +116,10 @@ In the `Index` component update the event handler for the `ConfiguredPizzaItems`
 }
 ```
 
-Run the app and try removing a pizza from the order.
+アプリを実行して、注文を作成した後、注文からピザを削除してみてください。
 
 ![Confirm pizza removal](https://user-images.githubusercontent.com/1874516/77243688-34b40400-6bca-11ea-9d1c-331fecc8e307.png)
 
-Notice that we didn't have to update the signature of `ConfiguredPizzaItem.OnRemoved` to support async. This is another special property of `EventCallback`, it supports both synchronous event handlers and asynchronous event handlers.
+`ConfiguredPizzaItem.OnRemoved` の呼び出しで非同期処理をサポートしていませんが、これは `EventCallback` の特性で、イベントハンドラーは同期と非同期の両方をサポートしています。
 
-Next up - [Templated components](08-templated-components.md)
+次のセッションは - [テンプレート コンポーネント](08-templated-components.md) です。

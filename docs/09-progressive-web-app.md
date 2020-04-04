@@ -1,20 +1,20 @@
-# Progressive Web App (PWA) features
+# プログレッシブ Web アプリ(PWA)
 
-The term *Progressive Web App (PWA)* refers to web applications that make use of certain modern browser APIs to create a native-like app experience that integrates with the user's desktop or mobile OS. For example:
+*プログレッシブ Web アプリ (PWA)* とはモダンブラウザの API を駆使し、ネイティブアプリのように動作するアプリケーションの事で、デスクトップやモバイル OS と連携して機能します:
 
- * Installing into the OS task bar or home screen
- * Working offline
- * Receiving push notifications
+ * OS のタスクバーやホームスクリーンにインストールされる
+ * オフラインで機能する
+ * プッシュ通知機能がある
 
-Blazor uses standard web technologies, which means you can take advantage of these browser APIs, just as you could with other modern web frameworks.
+Blazor もブラウザで動作するアプリのため、他のモダン Web フレームワークと同様、高度なブラウザの機能が利用できます。
 
-## Adding a service worker
+## サービスワーカーの追加
 
-As a prerequisite to most of the PWA-type APIs, your application will need a *service worker*. This is a JavaScript file, usually quite small, that provides event handlers that the browser can invoke outside the context of your running application, for example when fetching resources from your domain, or when a push notification arrives. You can learn more about service workers in Google's [Web Fundamentals guide](https://developers.google.com/web/fundamentals/primers/service-workers).
+PWA の重要な機能として、*サービスワーカー* があります。これは通常の JavaScript ファイルで、ブラウザがアプリケーションのコンテキスト外で実行できるイベントハンドラを提供します。このハンドラはプッシュ通知を受けた時などにトリガーすることができます。詳細については Google の [Service Worker の紹介](https://developers.google.com/web/fundamentals/primers/service-workers)を参照してください。
 
-Even though Blazor applications are built in .NET, your service worker will still be JavaScript because it runs outside the context of your application. Technically it would be possible to create a service worker that starts up the Mono WebAssembly runtime and then runs .NET code within the service worker context, but this is a lot of work that may be unnecessary considering that you might only need a few lines of JavaScript code.
+Blazor は .NET で開発しますが、サービスワーカーについてはアプリケーションのコンテキスト外のため、 JavaScript で実装します。技術的には Mono WebAssembly を使ってサービスワーカーを作り、.NET コードを実行することもできますが、開発工数に見合わないため通常は数行の JavaScript コードを使います。
 
-To add a service worker, create a file called `service-worker.js` in your client app's `wwwroot` directory, containing:
+サービスワーカーとして `wwwroot` に `service-worker.js` ファイルを作成して、以下のコードを貼り付けます:
 
 ```js
 self.addEventListener('install', async event => {
@@ -29,31 +29,31 @@ self.addEventListener('fetch', event => {
 });
 ```
 
-This service worker doesn't really do anything yet. It just installs itself, and then whenever any `fetch` event occurs (meaning that the browser is performing an HTTP request to your origin), it simply opts out of processing the request so that the browser handles it normally. If you want, you can come back to this file later and add some more advanced functionality like offline support, but we don't need that just yet.
+上記コードは、サービスワーカーのインストールの実行と、他サービスがアプリケーションに対して `fetch` イベントを発生させた場合に応答するリスナーを作成します。必要に応じてオフラインサポート等も追加できますが、今のところ変更はしません。
 
-Enable the service worker by adding the following `<script>` element into your `index.html` file, for example beneath the other `<script>` elements:
+次に `index.html` の `<script>` タグに以下のコードを追加します:
 
 ```html
 <script>navigator.serviceWorker.register('service-worker.js');</script>
 ```
 
-If you run your app now, then in the browser's dev tools console, you should see it log the following message:
+アプリを起動してブラウザーの開発者ツールを開くと、以下のメッセージがコンソールに表示されます。
 
 ```
 Installing service worker...
 ```
 
-Note that this only happens during the first page load after each time you modify `service-worker.js`. It doesn't re-install on each load if that file's contents (compared byte-for-byte) haven't changed. Try it out: check that you can make some trivial change to the file (such as adding a comment or changing whitespace) and observe that it reinstalls after those changes, but not at other times.
+インストールは `service-worker.js` ファイル変更後にページをロードした際に 1 度だけ実行されるため、再起動しても毎回インストールはされません。ファイルの一部を変更して再読み込みするなどして試してみてください。
 
-This might not seem to achieve anything yet, but is a prerequisite for the following steps.
+この時点で機能はありませんが、全てのサービスワーカーはこのコードが必要となるため、テンプレートとして覚えておいてください。
 
-## Making your app installable
+## アプリをインストール可能にする
 
-Next, let's make it possible to install Blazing Pizza into your OS. This uses a browser feature in Chrome/Edge-beta on Windows/Mac/Linux, or Safari/Chrome for iOS/Android. It may not yet be implemented on other browsers such as Firefox.
+次に Blazor アプリを OS にインストールできるようにします。Windows/Mac/Linux OS の場合は Chrome/Edge ベータ版、iOS/Android は Safari/Chrome の機能を使うため、Firefox など他のブラウザでは機能しない可能性があります。
 
-First add a file called `manifest.json` in your client app's `wwwroot`, containing:
+`wwwroot` 直下に `manifest.json` ファイルを作成して、以下設定を追加します:
 
-```js
+```json
 {
   "short_name": "Blazing Pizza",
   "name": "Blazing Pizza",
@@ -72,52 +72,49 @@ First add a file called `manifest.json` in your client app's `wwwroot`, containi
 }
 ```
 
-You can probably guess what this information is used for. It will determine how your app will be presented to the user once installed into the OS. Feel free to change the text or colors if you want.
+この情報で OS に対してアプリをインストールします。色や名前など好きに変えてください。
 
-Next you'll need to tell the browser where to find this file. Add the following element into the `<head>` section of your `index.html`:
+次にこのファイルのパスを `index.html` の `<head>` セクションで指定します:
 
 ```html
 <link rel="manifest" href="manifest.json" />
 ```
 
-... and that's it! Next time you load the site in Chrome or Edge beta, you'll see a new icon in the address bar that prompts users to install the app:
+この状態でアプリを起動すると、アドレスバーにインストール用の [+] ボタンが表示さえれるので、クリックするとインストールが行えます。
 
 ![image](https://user-images.githubusercontent.com/1101362/66352975-d1eee900-e958-11e9-9042-85ea4ac0c56b.png)
 
-Users on mobile devices would reach the same functionality via an option called *Add to home screen* or similar.
+モバイルデバイスの場合は *Add to home screen* 機能から実行します。
 
-Once installed, the app will appear as a standalone app in its own window with no other browser UI:
+インストールされたアプリは、スタンドアロンのネイティブアプリのように表示されます:
 
 ![image](https://user-images.githubusercontent.com/1101362/66356174-0024f680-e962-11e9-9218-3f1ca657a7a7.png)
 
-Users on Windows will also find it on their start menu, and can pin it to their taskbar if desired. Similar options exist on macOS.
+Windows ユーザーの場合、インストールしたアプリはスタートメニューにも追加され、タスクバーにピンすることもできます。macOS でも似た機能が提供されます。
 
-## Sending push notifications
+## プッシュ通知の送信
 
-Another major PWA feature is the ability to receive and display *push notifications* from your backend server, even when the user is not on your site or in your installed app. You can use this to:
+PWA の重要な機能として、バックエンドサーバーからの*プッシュ通知*があります。サービスワーカーが受け取るため、アプリを起動している必要はありません。
 
- * Notify users that something really important has happened, so they should return to your site/app
- * Update data stored in your app (such as a news feed) so it will be fresher when the user next returns, even if they are offline at that time
- * Send unsolicited advertising, or messages saying "*Hey we miss you, please visit us again!*" (Just kidding! If you do that, users will immediately block you.)
+ * 重要なイベントがある場合にユーザーに通知してアプリを開いてもらう。
+ * ユーザーが次回アプリを開いた際、オフラインであっても最新の情報が取得できる様にニュースフィードなどアプリ内のデータを更新する。
 
-For Blazing Pizza, we have a very valid use case. Many users genuinely would want to receive push notifications that give order dispatch or delivery status updates.
+今回のアプリではピザの配達が始まったタイミングや配達のステータスが変わったタイミングで通知を行います。
 
-### Getting a subscription
+### イベントのサブスクリプション
 
-Before you can send push notifications to a user, you have to ask them for permission. If they agree, their browser will generate a "subscription", which is a set of tokens you can use to route notifications to this user.
+プッシュ通知を受け取る為にユーザーの同意を得る必要があります。ユーザーが同意するとブラウザはサブスクリプションを作成して通知を受け取れます。通常は *Send me updates* のようなボタンを用意しますが、今回は単純にするためにチェックアウト画面に移動したタイミングで同意の確認をします。
 
-You can ask for this permission any time you want, but for the best chance of success, ask users only when it's really clear why they would want to subscribe. You might want to have a *Send me updates* button, but for simplicity we'll ask users when they get to the checkout page, since at that point it's clear the user is serious about placing an order.
+`Checkout.razor` の `OnInitializedAsync` メソッドに以下を追加します:
 
-In `Checkout.razor`, at the very end of `OnInitializedAsync`, add the following:
-
-```cs
+```csharp
 // In the background, ask if they want to be notified about order updates
 _ = RequestNotificationSubscriptionAsync();
 ```
 
-You'll then need to define `RequestNotificationSubscriptionAsync`. Add this elsewhere in your `@code` block:
+次に `RequestNotificationSubscriptionAsync` を `@code` ブロックに追加します:
 
-```cs
+```csharp
 async Task RequestNotificationSubscriptionAsync()
 {
     var subscription = await JSRuntime.InvokeAsync<NotificationSubscription>("blazorPushNotifications.requestSubscription");
@@ -128,31 +125,30 @@ async Task RequestNotificationSubscriptionAsync()
 }
 ```
 
-This code invokes a JavaScript function that you'll find in `BlazingPizza.ComponentsLibrary/wwwroot/pushNotifications.js`. The JavaScript code there calls the `pushManager.subscribe` API and returns the results to .NET.
+このコードでは `BlazingPizza.ComponentsLibrary/wwwroot/pushNotifications.js` にある `pushManager.subscribe` API 経由で結果を .NET 側に伝えます。
 
-If the user agrees to receive notifications, this code sends the data to your server where the tokens are stored in your database for later use.
+ユーザーがプッシュ通知に同意した場合、バックエンドにトークンが送信され、プッシュ通知時に使用されます。
 
-To try this out, start placing an order and go to the checkout screen. You should see a request:
+アプリを起動して、注文を行ってみてください。
 
 ![image](https://user-images.githubusercontent.com/1101362/66354176-eed8eb80-e95b-11e9-9799-b4eba6410971.png)
 
-Choose *Allow* and check in the browser dev console that it didn't cause any errors. If you want, set a breakpoint on the server in `NotificationsController`'s `Subscribe` action method, and run with debugging. You should be able to see the incoming data from the browser, which includes an endpoint URL as well as some cryptographic tokens.
+開発者ツールのコンソールを開き、*Allow* を選択した際にエラーが出ないことを確認します。バックエンドでデバッグをしたい場合は、`NotificationsController` の `Subscribe` メソッドにブレークポイントを設定します。ブラウザより、エンドポイント URL やトークンが送られてくることが分かります。
 
-Once you've either allowed or blocked notifications for a given site, your browser won't ask you again. If you need to reset things for further testing, if you're using Chrome or Edge beta, you can click the "information" icon to the left of the address bar, and change *Notifications* back to *Ask (default)* as in this screenshot:
-
+同意してもしなくても、ユーザーに対するプロンプトは 1 度しか行われません。テストのため同意情報をリセットしたい場合、ブラウザの情報アイコン [!] をクリックして、通知を *確認する* に変更してください。
 ![image](https://user-images.githubusercontent.com/1101362/66354317-58f19080-e95c-11e9-8c24-dfa2d19b45f6.png)
 
-### Sending a notification
+### プッシュ通知の送信
 
-Now you have subscriptions, you can send notifications. This involves performing some complex cryptographic operations on your server to protect the data in transit. Thankfully the bulk of the complexity is handled for us by a third-party NuGet package.
+プッシュ通知を行う際、セキュリティのために複雑な暗号化処理が行われます。しかしこのような処理は 3rd パーティーの NuGet パッケージが行ってくれます。
 
-To get started, in your `BlazingPizza.Server` project, reference the NuGet package `WebPush`. The following instructions are based on using version `1.0.11`.
+`BlazingPizza.Server` プロジェクトに `WebPush` Nuget を追加します。以下手順はバージョン `1.0.11` で検証したものです。
 
-Next, open `OrdersController`. Have a look at the `TrackAndSendNotificationsAsync` method. This simulates a sequence of delivery steps once each order is placed, and calls `SendNotificationAsync` which isn't yet fully implemented.
+次に `OrdersController` を開き、`TrackAndSendNotificationsAsync` メソッドを確認します。このメソッドでは配送のステップをシミュレートし、`SendNotificationAsync` を実行します。
 
-We'll now update `SendNotificationAsync` to actually dispatch notifications using the subscription you captured earlier for the order's user. The following code makes uses of `WebPush` APIs for dispatching the notification:
+`SendNotificationAsync` は先ほど取得したサブスクリプションを利用して、通知を行います。次のコードは `WebPush` API を使ってプッシュ通知をおこなっています:
 
-```cs
+```csharp
 private static async Task SendNotificationAsync(Order order, NotificationSubscription subscription, string message)
 {
     // For a real application, generate your own
@@ -178,17 +174,17 @@ private static async Task SendNotificationAsync(Order order, NotificationSubscri
 }
 ```
 
-You can generate the cryptographic keys either locally on your workstation, or online using a tool such as https://tools.reactpwa.com/vapid. If you change the demo keys in the code above, remember to update the public key in `pushNotifications.js` too. You would also have to update the `someone@example.com` address in the C# code to match your custom key pair.
+暗号キーはローカルでも https://tools.reactpwa.com/vapid のようなツールを使ってオンラインでも生成できます。キーを更新した場合は、`pushNotifications.js` のキーも併せて更新してください。また`someone@example.com` サンプルアドレスも変更してください。
 
-If you try this now, although the server will send the notification, the browser won't display it. That's because you haven't told your service worker how to handle incoming notifications.
+サービスワーカーは通知を受け取りますが、処理を特に実施しないため、この状態でアプリを起動しても UI 上には変化がありません。
 
-Try using the browser's dev tools to observe that a notification does arrive 10 seconds after you place an order. Use the dev tools *Application* tab and open the *Push Messaging* section, then click on the circle to *Start recording*:
+ブラウザーの開発者ツールを開くと、注文を行った 10 秒程度後に通知が届くことが確認できます。*Application* タブを開き、 *Push Messaging* セクションを確認してください。*Start recording* をクリックして記録を行えます。
 
 ![image](https://user-images.githubusercontent.com/1101362/66354962-690a6f80-e95e-11e9-9b2c-c254c36e49b4.png)
 
-### Displaying notifications
+### 通知の表示
 
-You're nearly there! All that remains is updating `service-worker.js` to tell it what to do with incoming notifications. Add the following event handler function:
+受け取った通知を `service-worker.js` で処理して表示できるよう、以下の関数を使いします:
 
 ```js
 self.addEventListener('push', event => {
@@ -204,33 +200,29 @@ self.addEventListener('push', event => {
 });
 ```
 
-Remember that this doesn't take effect until after the next page load when the browser logs `Installing service worker...`. If you're struggling to get the service worker to update, you can use the dev tools *Application* tab, and under *Service Workers*, choose *Update* (or even *Unregister* so it re-registers on the next load).
+`service-worker.js` を変更したため、次回ブラウザでアプリをロードした際、`Installing service worker...` の表示と共にサービスワーカーが更新されます。手動でアップデートする場合は開発者ツールの *アプリケーション* タブにある *サービスワーカー* より *更新* または *登録解除* から強制的に行います。
 
-With this in place, once you place an order, as soon as the order moves into *Out for delivery* status (after 10 seconds), you should receive a push notification:
+アプリを起動して注文を行うと、ステータスが *Out for delivery* になったタイミングで通知が表示されます。
 
 ![image](https://user-images.githubusercontent.com/1101362/66355395-0bc2ee00-e95f-11e9-898d-23be0a17829f.png)
 
-If you're using Chrome or Edge beta, this will appear even if you're not still on the Blazing Pizza app, but only if your browser is running (or the next time you open the browser). If you're using the installed PWA, the notification should be delivered even if you're not running the app at all.
+Chrome または Edge ベータ版を使っている場合、アプリと異なるページを見ていても通知が来ますが、ブラウザが起動している必要があります。アプリをインストール場合は、アプリを起動していなくても通知が処理されます。
 
-## Handling clicks on notifications
+## 通知をクリックした際の処理
 
-Currently if the user clicks the notification, nothing happens. It would be much better if it took them to the order status page for whichever order we're telling them about.
+ユーザーが通知をクリックした際に、注文のページが開くようにします。バックエンドからは通知に `url` が送られているため、こちらのアドレスを開きます。`service-worker.js` に以下のコードを追加します:
 
-Your server-side code already sends a `url` data parameter with the notification for this purpose. To use it, add the following to your `service-worker.js`:
-
-```js
+```javascript
 self.addEventListener('notificationclick', event => {
     event.notification.close();
     event.waitUntil(clients.openWindow(event.notification.data.url));
 });
 ```
 
-Now, once your service worker has updated, the next time you click on an incoming push notification it will take you to the relevant order status information. If you have the Blazing Pizza PWA installed, it will take you into the PWA, whereas if you don't it will take you to the page in your browser.
+サービスワーカーが更新された後、再度通知を試します。今回は届いた通知をクリックすることで、注文画面が開きます。アプリケーションとしてインストールされている場合は、PWA が開きます。
 
-## Summary
+このセッションでは Blazor が .NET だけでなく、モダンブラウザーや JavaScript の恩恵を全て受けられることを見てきました。通常の Web アプリケーションのように、常に最新バージョンを使えるメリットに加え、ネイティブアプリのように動作し、OS にインストールできます。
 
-This chapter showed how, even though Blazor applications are written in .NET, you still have full access to benefit from modern browser/JavaScript capabilities. You can create a OS-installable app that looks and feels as native as you like, while having the always-updated benefits of a web app.
+もし PWA をさらに突き詰めたい場合、是非オフラインサポートも試してください。基本的な動作は非常にシンプルです。[The Offline Cookbook](https://developers.google.com/web/fundamentals/instant-and-offline/offline-cookbook) には多くのサービスワーカーの例があります。今回のアプリはピザの注文用途のため、バックエンドなしではあまり意味がありませんでした。それでもオフライン時に注文を見れるなど幾つかのシナリオはあるでしょう。
 
-If you want to go further on the PWA journey, as a more advanced challenge you could consider adding offline support. It's relatively easy to get the basics working - just see [The Offline Cookbook](https://developers.google.com/web/fundamentals/instant-and-offline/offline-cookbook) for a variety of service worker samples representing different offline strategies, any of which can work with a Blazor app. However, since Blazing Pizza requires server APIs to do anything interesting like view or place orders, you would need to update your components to provide a sensible behavior when the network isn't reachable (for example, use cached data if that makes sense, or provide UI that appears if you're offline and try to do something that requires network access).
-
-Next up - [Publish and deploy](10-publish-and-deploy.md)
+次のセッションは - [発行と展開](10-publish-and-deploy.md) です。
