@@ -286,7 +286,7 @@ public string City { get; set; }
 * 値が編集された場合、すぐに `EditContext` に通知して検証結果を変更できる。
 * `EditContext` から検証結果を受け取れるため、値が有効か無効かを判断して画面を変更できる。
 
-再度 `AddressEditor.razor` に戻って、`<input>` エレメントを `<InputText>` に変更します:
+再度 `AddressEditor.razor` に戻って、`<input>` エレメントを `<InputText>` に変更します。また @bind を @bind-Value に変更してください:
 
 ```html
 <div class="form-field">
