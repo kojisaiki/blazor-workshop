@@ -114,11 +114,10 @@ async Task PlaceOrder()
 }
 ```
 
-`OrderState.Order` や `OrderState.Order.Pizza` と書くのが長いと感じる場合は、プロパティを作成することもできます。
+`OrderState.Order` と書くのが長いと感じる場合は、プロパティを作成することもできます。
 
 ```csharp
-Order Order = OrderState.Order;
-Pizza Pizza = OrderState.Order.Pizza;
+Order Order => OrderState.Order;
 ```
 
 コードを変更した後でアプリケーションを起動して、全て機能するか確認してください。特に既知の不具合が解消されているかは、再現手順を実施して、注文データが失われないか確認してください。
