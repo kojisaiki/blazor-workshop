@@ -316,7 +316,7 @@ public void ReplaceOrder(Order order)
 @attribute [Authorize]
 ```
 
-`[Authorize]` 属性を指定するとルーティングシステムの一部として機能します。また `App.razor` で `<RouteView ../>`  `<AuthorizeRouteView .../>` に変更する必要があります:
+`[Authorize]` 属性を指定するとルーティングシステムの一部として機能します。また `App.razor` で `<RouteView ../>` を `<AuthorizeRouteView .../>` に変更する必要があります:
 
 ```html
 <CascadingAuthenticationState>
@@ -333,7 +333,7 @@ public void ReplaceOrder(Order order)
 
 これでログインしたユーザーは *My orders* ページにアクセスできますが、ログインしていないユーザーはページにアクセスすると *Not authorized* というメッセージが表示されます。
 
-最後にメッセージを少しカスタマイズしてみます。単に *Not authorized* と表示する代わりに *Sign in* へのリンクを表示します。`App.razor` の `<NotAuthorized>` セクションと `<Authorizing>` セクションを以下のように変更します:
+最後にメッセージを少しカスタマイズしてみます。単に *Not authorized* と表示する代わりに *Sign in* へのリンクを表示します。`App.razor` の `<AuthorizeRouteView>` セクションに `<NotAuthorized>` セクションと `<Authorizing>` セクションを以下のように追加します:
 
 ```html
 <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
