@@ -53,11 +53,16 @@ ComponentsLibrary プロジェクトの `Map` コンポーネントは、現在�
 @using BlazingPizza.ComponentsLibrary.Map
 ```
 
-その後 `OrderDetails` コンポーネントで `Map` を使うと、エディターで認識されます。`track-order-details` の `div` 直下に以下マークアップを追加します:
+その後 `OrderDetails` コンポーネントで `Map` を使うと、エディターで認識されます。`track-order-details` の `div` の後に次の `track-order-map` の `div` マークアップを追加します:
 
 ```html
-<div class="track-order-map">
-    <Map Zoom="13" Markers="orderWithStatus.MapMarkers" />
+<div class="track-order-body">
+    <div class="track-order-details">
+        ... leave this div unchanged ...
+    </div>
+    <div class="track-order-map">
+        <Map Zoom="13" Markers="orderWithStatus.MapMarkers" />
+    </div>
 </div>
 ```
 
@@ -95,7 +100,7 @@ public static class JSRuntimeExtensions
 @inject IJSRuntime JS
 ```
 
-`RemovePizza` メソッドで先ほど作成した `Confirm` メソッドの呼び出しを追加し、ピザを注文から削除した際に、確認画面が出るようにします。また確認の結果が true であった場合、`OrderState` の `RemoveConfiguredPizza` メソッドを実行します:
+新しい削除処理 `RemovePizza` メソッドを作成します。 `RemovePizza` に先ほど作成した `Confirm` メソッドの呼び出しを追加し、ピザを注文から削除した際に、確認画面が出るようにします。また確認の結果が true であった場合、`OrderState` の `RemoveConfiguredPizza` メソッドを実行します:
 
 ```csharp
 async Task RemovePizza(Pizza configuredPizza)
