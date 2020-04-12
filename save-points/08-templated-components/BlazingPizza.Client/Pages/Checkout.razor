@@ -38,6 +38,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // In the background, ask if they want to be notified about order updates
+        _ = RequestNotificationSubscriptionAsync();
+
         var authState = await AuthenticationStateTask;
         if (!authState.User.Identity.IsAuthenticated)
         {
@@ -61,6 +64,15 @@
                 // There's nothing check out - go to home
                 NavigationManager.NavigateTo("");
             }
+        }
+    }
+
+    async Task RequestNotificationSubscriptionAsync()
+    {
+        var subscription = await JSRuntime.InvokeAsync<NotificationSubscription>("blazorPushNotifications.requestSubscription");
+        if (subscription != null)
+        {
+            await HttpClient.PutJsonAsync<object>("notifications/subscribe", subscription);
         }
     }
 
