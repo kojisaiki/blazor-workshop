@@ -122,6 +122,15 @@ Blazor はこの機能を提供しており、レイアウトも似た機能を�
 
 コンポーネントを `BlazingPizza.Client` で使えるように、`BlazingComponents` をプロジェクト参照追加します。
 
+Visual Studio Code 等テキストベース編集の場合、 `BlazingPizza.Client.csproj` の `<ItemGroup>` に参照を追記します。
+
+```
+  <ItemGroup>
+    ...
+    <ProjectReference Include="..\BlazingComponents\BlazingComponents.csproj" />
+  </ItemGroup>
+```
+
 追加後 `_Imports.razor` ファイルに `@using` を追加します:
 
 ```html
