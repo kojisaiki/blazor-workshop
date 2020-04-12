@@ -310,7 +310,7 @@ public void ReplaceOrder(Order order)
 
 ここでは新たに `@page` ディレクティブに `[Authorize]` 属性を指定する方法を使います。この方法はページ自体のアクセスを制御する場合に便利です。
 
-`MyOrders` コンポーネントの `@page` ディレクティブにの下に以下ラインを追加します:
+`MyOrders` コンポーネントの `@page` ディレクティブの下に以下ラインを追加します:
 
 ```csharp
 @attribute [Authorize]
